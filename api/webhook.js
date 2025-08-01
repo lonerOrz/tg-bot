@@ -1,7 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
-const handleHello = require("./hello");
 const handleVerify = require("./verify");
-const permissionsCheck = require("./permissions");
+const commandDispatcher = require("./commands");
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 
@@ -14,15 +13,14 @@ module.exports = async (request, response) => {
       await handleVerify(bot, body);
     }
 
-    // 打招呼逻辑
+    // 文本命令逻辑
     if (body.message?.text) {
-      await handleHello(bot, body);
+      const handled = await commandDispatcher(bot, body.message);
+      if (!handled) {
+        // 非命令文本，做别的处理
+        await handleHello(bot, body);
+      }
     }
-
-    // 检查bot权限
-    bot.onText(/\/checkbot/, (msg) => {
-      permissionsCheck(bot, msg);
-    });
   } catch (error) {
     console.error("Error in bot:", error.toString());
   }
