@@ -1,8 +1,10 @@
-module.exports = async (bot, body) => {
+module.exports = async (bot, msg) => {
   const {
-    chat: { id },
-    text,
-  } = body.message;
+    chat: {
+      id
+    },
+    text
+  } = msg;
 
   const message = `✅ Thanks for your message: *"${text}"*\nHave a great day! 👋🏻`;
 

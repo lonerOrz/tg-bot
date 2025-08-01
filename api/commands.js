@@ -8,7 +8,7 @@ const commands = {
 
 module.exports = async (bot, msg) => {
   const text = msg.text.trim();
-  const cmd = text.split(" ")[0];
+  const cmd = text.split(" ")[0].split("@")[0];
 
   const handler = commands[cmd];
   if (handler) {

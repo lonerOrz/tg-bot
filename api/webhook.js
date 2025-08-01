@@ -18,8 +18,7 @@ module.exports = async (request, response) => {
     if (body.message?.text) {
       const handled = await commandDispatcher(bot, body.message);
       if (!handled) {
-        // 非命令文本，做别的处理,暂时为回复"Hello"
-        await handleHello(bot, body.message);
+        // 非命令文本，不做任何处理
       }
     }
   } catch (error) {
