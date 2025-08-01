@@ -12,8 +12,8 @@ module.exports = async (bot, msg) => {
 
   const handler = commands[cmd];
   if (handler) {
+    // 这里不再需要 try/catch，因为错误会由 webhook.js 统一处理
     await handler(bot, msg);
-    return true; // 命令已处理
   }
-  return false; // 没有匹配命令
+  // 如果没有匹配的命令，则不执行任何操作
 };
