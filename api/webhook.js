@@ -1,6 +1,7 @@
 const TelegramBot = require("node-telegram-bot-api");
 const handleVerify = require("./verify");
 const commandDispatcher = require("./commands");
+const handleHello = require("./hello");
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN);
 
@@ -17,8 +18,8 @@ module.exports = async (request, response) => {
     if (body.message?.text) {
       const handled = await commandDispatcher(bot, body.message);
       if (!handled) {
-        // 非命令文本，做别的处理
-        await handleHello(bot, body);
+        // 非命令文本，做别的处理,暂时为回复"Hello"
+        await handleHello(bot, body.message);
       }
     }
   } catch (error) {
