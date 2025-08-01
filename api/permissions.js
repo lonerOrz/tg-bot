@@ -3,8 +3,7 @@ module.exports = async (bot, msg) => {
   const isGroup = msg.chat.type.includes("group");
 
   if (!isGroup) {
-    await bot.sendMessage(chatId, "⚠️ 此命令只能在群组中使用");
-    return;
+    return bot.sendMessage(chatId, "⚠️ 此命令只能在群组中使用");
   }
 
   try {
@@ -13,8 +12,7 @@ module.exports = async (bot, msg) => {
     const botAdmin = admins.find((admin) => admin.user.id === me.id);
 
     if (!botAdmin) {
-      await bot.sendMessage(chatId, "❌ 我不是管理员，请先将我设为群管理员！");
-      return;
+      return bot.sendMessage(chatId, "❌ 我不是管理员，请先将我设为群管理员！");
     }
 
     const perms = {

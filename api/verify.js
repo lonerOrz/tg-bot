@@ -40,11 +40,15 @@ module.exports = async (bot, body) => {
         const timeout = setTimeout(async () => {
           if (pendingVerifications.has(userId)) {
             try {
-              await bot.sendMessage(chatId, `⏰ 验证超时，${name} 已被移除。`);
               await bot.kickChatMember(chatId, userId);
+              await bot.sendMessage(chatId, `⏰ 验证超时，${name} 已被移除。`);
               console.log(`❌ 用户 ${userId} 验证超时，已踢出群`);
             } catch (err) {
               console.error("超时踢人失败：", err);
+              await bot.sendMessage(
+                chatId,
+                `❗️ 无法移除 ${name}，TA 可能拥有管理员权限或我不是群组管理员。`,
+              );
             }
             pendingVerifications.delete(userId);
           }
