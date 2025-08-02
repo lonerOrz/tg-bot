@@ -22,14 +22,20 @@ module.exports = async (bot, msg) => {
 
   // 构建并发送权限报告
   const perms = {
-    "踢人权限 (can_restrict_members)": botAdmin.can_restrict_members,
+    "管理聊天 (can_manage_chat)": botAdmin.can_manage_chat,
     "删除消息 (can_delete_messages)": botAdmin.can_delete_messages,
-    "置顶消息 (can_pin_messages)": botAdmin.can_pin_messages,
+    "踢人权限 (can_restrict_members)": botAdmin.can_restrict_members,
     "邀请用户 (can_invite_users)": botAdmin.can_invite_users,
-    "更改群信息 (can_change_info)": botAdmin.can_change_info,
+    "固定消息 (can_pin_messages)": botAdmin.can_pin_messages,
     "提升管理员 (can_promote_members)": botAdmin.can_promote_members,
+    "更改群信息 (can_change_info)": botAdmin.can_change_info,
     "管理视频聊天 (can_manage_video_chats)": botAdmin.can_manage_video_chats,
     "管理话题 (can_manage_topics)": botAdmin.can_manage_topics,
+    "发布快拍 (can_post_stories)": botAdmin.can_post_stories,
+    "编辑快拍 (can_edit_stories)": botAdmin.can_edit_stories,
+    "删除快拍 (can_delete_stories)": botAdmin.can_delete_stories,
+    "可被编辑 (can_be_edited)": botAdmin.can_be_edited,
+    "匿名管理员 (is_anonymous)": botAdmin.is_anonymous,
   };
 
   let text = `🤖 *权限检查报告*\n\n`;
