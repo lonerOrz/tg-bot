@@ -13,6 +13,7 @@
     "ngrok": "^5.0.0-beta.2"
   },
   "dependencies": {
+    "@vercel/kv": "^1.0.1",
     "node-telegram-bot-api": "^0.65.1"
   }
 }

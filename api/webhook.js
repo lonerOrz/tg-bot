@@ -10,7 +10,8 @@ module.exports = async (request, response) => {
 
     if (body.message?.new_chat_members || body.callback_query) {
       await handleVerify(bot, body);
-    } else if (body.message?.text) {
+    }
+    if (body.message?.text) {
       await commandDispatcher(bot, body.message);
     }
     

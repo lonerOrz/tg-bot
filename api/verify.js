@@ -13,12 +13,23 @@ module.exports = async (bot, body) => {
     } = body.message;
 
     for (const member of new_chat_members) {
+      if (member.is_bot) continue;
+
       const userId = member.id;
       const name = member.first_name || "新成员";
 
+      // 检查新成员是否是管理员
+      const admins = await bot.getChatAdministrators(chatId);
+      const isAdmin = admins.find((admin) => admin.user.id === userId);
+
+      if (isAdmin) {
+        console.log(`ℹ️ 新成员 ${name} (${userId}) 是管理员，跳过验证。`);
+        continue;
+      }
+
       try {
         // 发送验证问题
-        await bot.sendMessage(
+        const sentMessage = await bot.sendMessage(
           chatId,
           `👋 欢迎 ${name}！请在 60 秒内回答问题：
 
@@ -38,8 +49,12 @@ module.exports = async (bot, body) => {
 
         // 设置 60 秒超时踢人
         const timeout = setTimeout(async () => {
-          if (pendingVerifications.has(userId)) {
+          const verifyData = pendingVerifications.get(userId);
+          if (verifyData) {
             try {
+              await bot.deleteMessage(chatId, verifyData.messageId).catch((err) => {
+                console.error("删除超时验证消息失败：", err);
+              });
               await bot.kickChatMember(chatId, userId);
               await bot.sendMessage(chatId, `⏰ 验证超时，${name} 已被移除。`);
               console.log(`❌ 用户 ${userId} 验证超时，已踢出群`);
@@ -57,6 +72,7 @@ module.exports = async (bot, body) => {
         pendingVerifications.set(userId, {
           correctIndex: CORRECT_INDEX,
           timeout,
+          messageId: sentMessage.message_id,
         });
 
         console.log(`🟢 添加验证记录：用户 ${userId} 加入待验证队列`);
@@ -95,6 +111,7 @@ module.exports = async (bot, body) => {
         return;
       }
 
+      // 关键修复：先清除计时器并删除记录，再判断对错
       clearTimeout(verifyData.timeout);
       pendingVerifications.delete(userId);
 
@@ -106,7 +123,9 @@ module.exports = async (bot, body) => {
         );
         await bot
           .deleteMessage(message.chat.id, message.message_id)
-          .catch(() => { });
+          .catch((err) => {
+            console.error("删除验证消息失败:", err);
+          });
         await bot.answerCallbackQuery(callbackId, {
           text: "验证成功！",
         });
