@@ -6,6 +6,7 @@
 const { pendingVerifications } = require("../utils/state");
 const config = require("../config");
 const { info, warn, error: logError } = require("../utils/logger");
+const { createNetworkError, createApiLimitError, createPermissionError } = require("./errorHandler");
 
 // 验证问题配置
 const QUESTION = "哪一个是水果？";
@@ -29,8 +30,21 @@ const handleNewMembers = async (bot, body) => {
     const userId = member.id;
     const name = member.first_name || "新成员";
 
-    // 检查新成员是否是管理员
-    const admins = await bot.getChatAdministrators(chatId);
+    let admins;
+    try {
+      // 检查新成员是否是管理员
+      admins = await bot.getChatAdministrators(chatId);
+    } catch (err) {
+      // 处理获取管理员列表时的错误
+      if (err.code === 'ETELEGRAM' && err.response?.statusCode === 429) {
+        throw createApiLimitError("⏳ 机器人操作过于频繁，请稍后再试。", chatId);
+      } else if (err.code === 'ETELEGRAM' && err.response?.statusCode === 403) {
+        throw createPermissionError("❌ 我不是群组管理员，无法获取管理员列表。", chatId);
+      } else {
+        throw createNetworkError("⚠️ 网络连接出现问题，请稍后重试。", chatId);
+      }
+    }
+    
     const isAdmin = admins.find((admin) => admin.user.id === userId);
 
     if (isAdmin) {
@@ -70,11 +84,17 @@ const handleNewMembers = async (bot, body) => {
             await bot.sendMessage(chatId, `⏰ 验证超时，${name} 已被移除。`);
             info(`用户 ${userId} 验证超时，已踢出群`);
           } catch (err) {
-            logError("超时踢人失败", { error: err.message });
-            await bot.sendMessage(
-              chatId,
-              `❗️ 无法移除 ${name}，TA 可能拥有管理员权限或我不是群组管理员。`,
-            );
+            if (err.code === 'ETELEGRAM' && err.response?.statusCode === 429) {
+              logError("API限制：无法移除超时用户", { error: err.message });
+            } else if (err.code === 'ETELEGRAM' && err.response?.statusCode === 403) {
+              logError("权限不足：无法移除用户", { error: err.message });
+              await bot.sendMessage(
+                chatId,
+                `❗️ 无法移除 ${name}，TA 可能拥有管理员权限或我不是群组管理员。`,
+              );
+            } else {
+              logError("超时踢人失败", { error: err.message });
+            }
           }
           await pendingVerifications.delete(userId);
         }
@@ -88,7 +108,16 @@ const handleNewMembers = async (bot, body) => {
 
       info(`添加验证记录：用户 ${userId} 加入待验证队列`);
     } catch (err) {
-      logError("发送验证消息失败", { error: err.message });
+      if (err.code === 'ETELEGRAM' && err.response?.statusCode === 429) {
+        logError("API限制：无法发送验证消息", { error: err.message });
+        throw createApiLimitError("⏳ 机器人操作过于频繁，请稍后再试。", chatId);
+      } else if (err.code === 'ETELEGRAM' && err.response?.statusCode === 403) {
+        logError("权限不足：无法发送验证消息", { error: err.message });
+        throw createPermissionError("❌ 我没有在群组中发送消息的权限。", chatId);
+      } else {
+        logError("发送验证消息失败", { error: err.message });
+        throw createNetworkError("⚠️ 发送验证消息失败，请稍后重试。", chatId);
+      }
     }
   }
 };
@@ -157,7 +186,11 @@ const handleCallbackQuery = async (bot, body) => {
           .deleteMessage(message.chat.id, message.message_id)
           .then(() => info(`验证消息已删除，用户ID: ${userId}`))
           .catch((err) => {
-            warn("删除验证消息失败", { error: err.message, userId, messageId: message.message_id });
+            if (err.code === 'ETELEGRAM' && err.response?.statusCode === 429) {
+              warn("API限制：删除验证消息失败", { error: err.message, userId, messageId: message.message_id });
+            } else {
+              warn("删除验证消息失败", { error: err.message, userId, messageId: message.message_id });
+            }
           });
         await bot.answerCallbackQuery(callbackId, {
           text: "验证失败，已被移除。",
@@ -165,7 +198,16 @@ const handleCallbackQuery = async (bot, body) => {
         });
         info(`用户 ${userId} 验证失败，已踢出群`);
       } catch (err) {
-        logError("踢出失败", { error: err.message });
+        if (err.code === 'ETELEGRAM' && err.response?.statusCode === 429) {
+          logError("API限制：踢出失败", { error: err.message });
+          throw createApiLimitError("⏳ 机器人操作过于频繁，请稍后再试。", message.chat.id);
+        } else if (err.code === 'ETELEGRAM' && err.response?.statusCode === 403) {
+          logError("权限不足：踢出失败", { error: err.message });
+          throw createPermissionError("❌ 我没有权限移除用户。", message.chat.id);
+        } else {
+          logError("踢出失败", { error: err.message });
+          throw createNetworkError("⚠️ 移除用户失败，请稍后重试。", message.chat.id);
+        }
       }
     }
   }

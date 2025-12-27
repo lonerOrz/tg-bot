@@ -4,7 +4,7 @@
  */
 
 const config = require("../config");
-const { createErrorWithChatId } = require("./errorHandler");
+const { createPermissionError } = require("./errorHandler");
 
 // 管理员权限缓存，存储 { chatId: { adminData, timestamp } }
 const adminCache = new Map();
@@ -19,7 +19,7 @@ const CACHE_EXPIRY_TIME = 5 * 60 * 1000;
  */
 const checkIfInGroup = (msg) => {
   if (!msg.chat.type.includes("group")) {
-    throw createErrorWithChatId("⚠️ 此命令只能在群组中使用。", msg.chat.id);
+    throw createPermissionError("⚠️ 此命令只能在群组中使用。", msg.chat.id);
   }
 };
 
@@ -32,7 +32,7 @@ const checkGroupWhitelist = (msg) => {
   const chatId = msg.chat.id;
 
   if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
-    throw createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
+    throw createPermissionError("❌ 此群组未被授权使用机器人。", chatId);
   }
 };
 
@@ -45,7 +45,7 @@ const checkGroupWhitelistForCommand = (msg) => {
   const chatId = msg.chat.id;
 
   if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
-    const error = createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
+    const error = createPermissionError("❌ 此群组未被授权使用机器人。", chatId);
     throw error;
   }
   return true;
@@ -107,12 +107,25 @@ const checkBotAdmin = async (bot, msg) => {
   }
 
   // 缓存未命中，调用 API 获取数据
-  const me = await bot.getMe();
-  const admins = await bot.getChatAdministrators(chatId);
+  let me, admins;
+  try {
+    me = await bot.getMe();
+    admins = await bot.getChatAdministrators(chatId);
+  } catch (error) {
+    // 如果获取管理员列表失败，可能是网络错误或API限制
+    if (error.code === 'ETELEGRAM' && error.response?.statusCode === 429) {
+      // API 限制错误
+      throw require('./errorHandler').createApiLimitError("⏳ 机器人操作过于频繁，请稍后再试。", chatId);
+    } else {
+      // 网络或其他错误
+      throw require('./errorHandler').createNetworkError("⚠️ 网络连接出现问题，请稍后重试。", chatId);
+    }
+  }
+  
   const botAdmin = admins.find((admin) => admin.user.id === me.id);
 
   if (!botAdmin) {
-    throw createErrorWithChatId("❌ 我不是管理员，请先将我设为群管理员！", chatId);
+    throw createPermissionError("❌ 我不是管理员，请先将我设为群管理员！", chatId);
   }
 
   // 将结果存储到缓存

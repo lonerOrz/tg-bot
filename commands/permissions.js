@@ -1,10 +1,8 @@
 const {
   checkIfInGroup,
-  checkGroupWhitelist,
   checkBotAdmin,
   buildPermissionsReport
 } = require("../services/permissionService");
-const { createErrorWithChatId } = require("../services/errorHandler");
 
 module.exports = async (bot, msg) => {
   // 检查是否在群组中
