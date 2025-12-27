@@ -6,11 +6,6 @@ module.exports = async (bot, msg) => {
 
   const chatId = msg.chat.id;
 
-  // 检查是否在允许的群组中
-  if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
-    throw createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
-  }
-
   // 检查是否在群组中
   if (!msg.chat.type.includes("group")) {
     throw createErrorWithChatId("⚠️ 此命令只能在群组中使用。", chatId);

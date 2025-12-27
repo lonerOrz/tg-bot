@@ -25,7 +25,7 @@ const checkIfInGroup = (msg) => {
 const checkGroupWhitelist = (msg) => {
   const chatId = msg.chat.id;
 
-  if (config.enableGroupWhitelist && !config.allowedGroups.includes(chatId)) {
+  if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
     throw createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
   }
 };

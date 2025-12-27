@@ -11,13 +11,6 @@ module.exports = async (request, response) => {
   try {
     const { body } = request;
 
-    // 检查是否在允许的群组中
-    const chatId = body.message?.chat?.id || body.callback_query?.message?.chat?.id;
-    if (config.enableGroupWhitelist && chatId && !config.allowedGroups.includes(chatId)) {
-      warn(`Blocked request from unauthorized chat: ${chatId}`);
-      return response.status(403).send("Forbidden: Unauthorized chat");
-    }
-
     if (body.message?.new_chat_members || body.callback_query) {
       await handleVerify(bot, body);
     }

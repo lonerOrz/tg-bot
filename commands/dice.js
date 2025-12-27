@@ -1,13 +1,7 @@
-const config = require("../config");
 const { createErrorWithChatId } = require("../services/errorHandler");
 
 module.exports = async (bot, msg) => {
   const chatId = msg.chat.id;
-
-  // 检查是否在允许的群组中
-  if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
-    throw createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
-  }
 
   // 掷骰子，生成1到6之间的随机数
   const diceValue = Math.floor(Math.random() * 6) + 1;
