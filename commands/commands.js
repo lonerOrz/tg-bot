@@ -2,8 +2,8 @@ const permissionsCheck = require("./permissions");
 const handleHello = require("./hello");
 const handleTestVerify = require("./testVerify");
 const handleDice = require("./dice");
-const config = require("./config");
-const { createErrorWithChatId } = require("./services/errorHandler");
+const config = require("../lib/config");
+const { createErrorWithChatId } = require("../lib/services/errorHandler");
 
 const commands = {
   "/checkbot": permissionsCheck,

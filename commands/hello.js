@@ -1,5 +1,5 @@
-const config = require("./config");
-const { createErrorWithChatId } = require("./services/errorHandler");
+const config = require("../lib/config");
+const { createErrorWithChatId } = require("../lib/services/errorHandler");
 
 module.exports = async (bot, msg) => {
   const {

@@ -3,8 +3,8 @@ const {
   checkGroupWhitelist,
   checkBotAdmin,
   buildPermissionsReport
-} = require("./services/permissionService");
-const { createErrorWithChatId } = require("./services/errorHandler");
+} = require("../lib/services/permissionService");
+const { createErrorWithChatId } = require("../lib/services/errorHandler");
 
 module.exports = async (bot, msg) => {
   // 检查是否在群组中

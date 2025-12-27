@@ -1,4 +1,4 @@
-const { createErrorWithChatId } = require("./services/errorHandler");
+const { createErrorWithChatId } = require("../lib/services/errorHandler");
 
 module.exports = async (bot, msg) => {
   // 延迟加载配置以避免循环依赖
@@ -26,8 +26,8 @@ module.exports = async (bot, msg) => {
   }
 
   // 直接触发验证流程，避免管理员检查
-  const { pendingVerifications } = require("./utils/state");
-  const { info, error: logError } = require("./utils/logger");
+  const { pendingVerifications } = require("../lib/utils/state");
+  const { info, error: logError } = require("../lib/utils/logger");
 
   // 验证问题配置
   const QUESTION = "哪一个是水果？";

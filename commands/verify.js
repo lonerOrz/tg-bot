@@ -1,4 +1,4 @@
-const { handleNewMembers, handleCallbackQuery } = require("./services/verificationService");
+const { handleNewMembers, handleCallbackQuery } = require("../lib/services/verificationService");
 
 module.exports = async (bot, body) => {
   // 👥 新成员加入处理
