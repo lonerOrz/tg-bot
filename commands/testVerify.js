@@ -85,3 +85,9 @@ module.exports = async (bot, msg) => {
     logError("发送验证消息失败", { error: err.message });
   }
 };
+
+// 命令元数据
+module.exports.commandMetadata = {
+  command: 'testverify',
+  description: '测试验证逻辑'
+};

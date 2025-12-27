@@ -17,3 +17,9 @@ module.exports = async (bot, msg) => {
   // 直接发送成功消息
   await bot.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
 };
+
+// 命令元数据
+module.exports.commandMetadata = {
+  command: 'checkbot',
+  description: '检查机器人在群组中的权限'
+};

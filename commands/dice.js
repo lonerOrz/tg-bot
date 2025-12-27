@@ -12,3 +12,9 @@ module.exports = async (bot, msg) => {
   // 可选：发送文本消息说明结果
   // await bot.sendMessage(chatId, `🎲 掷出了 ${diceValue} 点！`);
 };
+
+// 命令元数据
+module.exports.commandMetadata = {
+  command: 'dice',
+  description: '掷骰子游戏'
+};

@@ -14,3 +14,9 @@ module.exports = async (bot, msg) => {
 
   await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
 };
+
+// 命令元数据
+module.exports.commandMetadata = {
+  command: 'hello',
+  description: '发送问候语'
+};
