@@ -153,6 +153,11 @@ const handleCallbackQuery = async (bot, body) => {
           `❌ ${from.first_name} 答错了，已被移出群组。`,
         );
         await bot.kickChatMember(message.chat.id, userId);
+        await bot
+          .deleteMessage(message.chat.id, message.message_id)
+          .catch((err) => {
+            logError("删除验证消息失败", { error: err.message });
+          });
         await bot.answerCallbackQuery(callbackId, {
           text: "验证失败，已被移除。",
           show_alert: true,
