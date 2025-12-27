@@ -1,11 +1,13 @@
 const permissionsCheck = require("./permissions");
 const handleHello = require("./hello");
+const handleTestVerify = require("./testVerify");
 const config = require("./config");
 const { createErrorWithChatId } = require("./services/errorHandler");
 
 const commands = {
   "/checkbot": permissionsCheck,
   "/hello": handleHello,
+  "/testverify": handleTestVerify,
 };
 
 module.exports = async (bot, msg) => {
