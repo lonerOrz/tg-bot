@@ -1,8 +1,9 @@
-const config = require("./config");
 const { createErrorWithChatId } = require("./services/errorHandler");
-const { handleNewMembers } = require("./services/verificationService");
 
 module.exports = async (bot, msg) => {
+  // 延迟加载配置以避免循环依赖
+  const config = require("./config");
+
   const chatId = msg.chat.id;
 
   // 检查是否在允许的群组中
@@ -24,25 +25,9 @@ module.exports = async (bot, msg) => {
     throw createErrorWithChatId("❌ 我不是管理员，请先将我设为群管理员！", chatId);
   }
 
-  // 模拟新成员加入的消息体
-  const mockBody = {
-    message: {
-      chat: { id: chatId },
-      new_chat_members: [
-        {
-          id: msg.from?.id || 123456789, // 使用触发命令的用户ID，或默认ID
-          first_name: msg.from?.first_name || "测试用户",
-          is_bot: false
-        }
-      ]
-    }
-  };
-
-  // 为了确保测试验证流程，我们直接调用验证服务内部逻辑
-  // 而不是通过handleNewMembers，这样可以避免管理员检查
+  // 直接触发验证流程，避免管理员检查
   const { pendingVerifications } = require("./utils/state");
-  const config = require("./config");
-  const { info, warn, error: logError } = require("./utils/logger");
+  const { info, error: logError } = require("./utils/logger");
 
   // 验证问题配置
   const QUESTION = "哪一个是水果？";
