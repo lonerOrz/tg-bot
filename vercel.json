@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/webhook.js": {
-      "includeFiles": "api/**"
+      "runtime": "nodejs18.x"
     }
   }
 }
