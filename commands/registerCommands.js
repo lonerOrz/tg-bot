@@ -35,6 +35,26 @@ const registerBotCommands = async (bot) => {
       }
     }
     
+    // 获取当前已注册的命令
+    const currentCommands = await bot.getMyCommands();
+    
+    // 比较当前命令和需要注册的命令
+    const currentCommandList = currentCommands.commands || [];
+    
+    // 检查是否需要更新
+    const needUpdate = 
+      currentCommandList.length !== botCommands.length || 
+      !botCommands.every(cmd => 
+        currentCommandList.some(currentCmd => 
+          currentCmd.command === cmd.command && currentCmd.description === cmd.description
+        )
+      );
+    
+    if (!needUpdate) {
+      console.log('命令列表已是最新，无需更新');
+      return true;
+    }
+    
     // 注册命令到 Telegram
     if (botCommands.length > 0) {
       await bot.setMyCommands(botCommands);

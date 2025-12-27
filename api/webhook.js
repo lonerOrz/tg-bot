@@ -8,16 +8,14 @@ const { info, warn, error } = require("../utils/logger");
 // 初始化机器人实例
 const bot = new TelegramBot(config.telegramToken);
 
-// 在开发/首次部署时注册命令
-// 注意：在生产环境中，我们通常不会在每次请求时都注册命令
-// 更好的方式是使用单独的脚本来执行此操作
-if (process.env.NODE_ENV !== 'production') {
-  // 在非生产环境中注册命令
-  const { registerBotCommands } = require("../commands/registerCommands");
-  registerBotCommands(bot).catch(err => {
-    console.error('命令注册失败:', err);
-  });
-}
+// 尝试注册命令
+// 由于 Vercel 环境的冷启动特性，这会在每次冷启动时执行
+const { registerBotCommands } = require("../commands/registerCommands");
+
+// 在模块加载时注册命令
+registerBotCommands(bot).catch(err => {
+  console.error('命令注册失败或不需要重复注册:', err.message);
+});
 
 module.exports = async (request, response) => {
   try {
