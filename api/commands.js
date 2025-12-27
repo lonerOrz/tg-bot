@@ -1,5 +1,7 @@
 const permissionsCheck = require("./permissions");
 const handleHello = require("./hello");
+const config = require("./config");
+const { createErrorWithChatId } = require("./services/errorHandler");
 
 const commands = {
   "/checkbot": permissionsCheck,
@@ -9,6 +11,13 @@ const commands = {
 module.exports = async (bot, msg) => {
   const text = msg.text.trim();
   const cmd = text.split(" ")[0].split("@")[0];
+
+  // 检查是否在允许的群组中
+  const chatId = msg.chat.id;
+  if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
+    // 如果群组不在白名单中，直接返回错误
+    throw createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
+  }
 
   const handler = commands[cmd];
   if (handler) {

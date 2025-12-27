@@ -1,12 +1,22 @@
 const TelegramBot = require("node-telegram-bot-api");
 const commandDispatcher = require("./commands");
 const handleVerify = require("./verify");
+const config = require("./config");
+const { handleCommandError } = require("./services/errorHandler");
+const { info, warn, error } = require("./utils/logger");
 
-const bot = new TelegramBot(process.env.TELEGRAM_TOKEN);
+const bot = new TelegramBot(config.telegramToken);
 
 module.exports = async (request, response) => {
   try {
     const { body } = request;
+
+    // 检查是否在允许的群组中
+    const chatId = body.message?.chat?.id || body.callback_query?.message?.chat?.id;
+    if (config.enableGroupWhitelist && chatId && !config.allowedGroups.includes(chatId)) {
+      warn(`Blocked request from unauthorized chat: ${chatId}`);
+      return response.status(403).send("Forbidden: Unauthorized chat");
+    }
 
     if (body.message?.new_chat_members || body.callback_query) {
       await handleVerify(bot, body);
@@ -14,18 +24,9 @@ module.exports = async (request, response) => {
     if (body.message?.text) {
       await commandDispatcher(bot, body.message);
     }
-    
+
   } catch (error) {
-    console.error("Caught error in webhook:", error);
-    // 尝试从错误中获取 chatId
-    const chatId = error.chatId || request.body?.message?.chat?.id;
-    if (chatId) {
-      try {
-        await bot.sendMessage(chatId, "❗️ 命令执行失败，请联系管理员。");
-      } catch (sendError) {
-        console.error("Failed to send error message to user:", sendError);
-      }
-    }
+    await handleCommandError(bot, request, error);
   } finally {
     response.status(200).send("OK");
   }
