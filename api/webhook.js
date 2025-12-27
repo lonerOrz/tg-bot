@@ -1,9 +1,9 @@
 const TelegramBot = require("node-telegram-bot-api");
-const commandDispatcher = require("./commands/commands");
-const handleVerify = require("./commands/verify");
-const config = require("./lib/config");
-const { handleCommandError } = require("./lib/services/errorHandler");
-const { info, warn, error } = require("./lib/utils/logger");
+const commandDispatcher = require("../commands/commands");
+const handleVerify = require("../commands/verify");
+const config = require("../config");
+const { handleCommandError } = require("../services/errorHandler");
+const { info, warn, error } = require("../utils/logger");
 
 const bot = new TelegramBot(config.telegramToken);
 
