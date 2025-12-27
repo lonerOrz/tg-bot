@@ -6,6 +6,12 @@
 const config = require("../config");
 const { createErrorWithChatId } = require("./errorHandler");
 
+// 管理员权限缓存，存储 { chatId: { adminData, timestamp } }
+const adminCache = new Map();
+
+// 缓存过期时间（毫秒），默认为 5 分钟
+const CACHE_EXPIRY_TIME = 5 * 60 * 1000;
+
 /**
  * 检查机器人是否在群组中
  * @param {Object} msg - 消息对象
@@ -46,7 +52,47 @@ const checkGroupWhitelistForCommand = (msg) => {
 };
 
 /**
- * 检查机器人是否为管理员
+ * 检查缓存中的管理员权限
+ * @param {number} chatId - 聊天ID
+ * @returns {Object|null} - 缓存的管理员数据或null
+ */
+const getCachedAdminData = (chatId) => {
+  const cached = adminCache.get(chatId);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_TIME) {
+    return cached.adminData;
+  }
+  
+  // 缓存过期，删除它
+  if (cached) {
+    adminCache.delete(chatId);
+  }
+  
+  return null;
+};
+
+/**
+ * 存储管理员权限到缓存
+ * @param {number} chatId - 聊天ID
+ * @param {Object} adminData - 管理员数据
+ */
+const setCachedAdminData = (chatId, adminData) => {
+  adminCache.set(chatId, {
+    adminData,
+    timestamp: Date.now()
+  });
+};
+
+/**
+ * 清除特定聊天的缓存
+ * @param {number} chatId - 聊天ID
+ */
+const clearCachedAdminData = (chatId) => {
+  adminCache.delete(chatId);
+};
+
+/**
+ * 检查机器人是否为管理员（带缓存）
  * @param {Object} bot - Telegram Bot 实例
  * @param {Object} msg - 消息对象
  * @throws {Error} 如果机器人不是管理员则抛出错误
@@ -54,7 +100,13 @@ const checkGroupWhitelistForCommand = (msg) => {
 const checkBotAdmin = async (bot, msg) => {
   const chatId = msg.chat.id;
 
-  // 检查机器人是否是管理员
+  // 尝试从缓存获取数据
+  const cachedAdminData = getCachedAdminData(chatId);
+  if (cachedAdminData) {
+    return cachedAdminData;
+  }
+
+  // 缓存未命中，调用 API 获取数据
   const me = await bot.getMe();
   const admins = await bot.getChatAdministrators(chatId);
   const botAdmin = admins.find((admin) => admin.user.id === me.id);
@@ -62,6 +114,9 @@ const checkBotAdmin = async (bot, msg) => {
   if (!botAdmin) {
     throw createErrorWithChatId("❌ 我不是管理员，请先将我设为群管理员！", chatId);
   }
+
+  // 将结果存储到缓存
+  setCachedAdminData(chatId, botAdmin);
 
   return botAdmin;
 };
@@ -103,4 +158,8 @@ module.exports = {
   checkGroupWhitelistForCommand,
   checkBotAdmin,
   buildPermissionsReport,
+  // 导出缓存管理函数，以便在需要时可以清除缓存
+  clearCachedAdminData,
+  setCachedAdminData,
+  getCachedAdminData
 };
