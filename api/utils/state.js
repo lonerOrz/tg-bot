@@ -7,6 +7,8 @@ let pendingVerifications;
 if (config.kv.enabled) {
   // 如果启用KV存储，则使用KV存储
   const { kv } = require('@vercel/kv');
+  const { error: logError } = require('../utils/logger');
+
   pendingVerifications = {
     // 使用KV存储的实现
     get: async (key) => {
@@ -14,7 +16,7 @@ if (config.kv.enabled) {
         const value = await kv.get(`${config.kv.prefix}verification:${key}`);
         return value;
       } catch (error) {
-        console.error('KV get error:', error);
+        logError('KV get error', { error: error.message, key });
         return null;
       }
     },
@@ -25,14 +27,14 @@ if (config.kv.enabled) {
           ex: Math.floor(config.verificationTimeout / 1000) // 转换为秒
         });
       } catch (error) {
-        console.error('KV set error:', error);
+        logError('KV set error', { error: error.message, key });
       }
     },
     delete: async (key) => {
       try {
         await kv.del(`${config.kv.prefix}verification:${key}`);
       } catch (error) {
-        console.error('KV del error:', error);
+        logError('KV del error', { error: error.message, key });
       }
     }
   };

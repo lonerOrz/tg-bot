@@ -155,8 +155,9 @@ const handleCallbackQuery = async (bot, body) => {
         await bot.kickChatMember(message.chat.id, userId);
         await bot
           .deleteMessage(message.chat.id, message.message_id)
+          .then(() => info(`验证消息已删除，用户ID: ${userId}`))
           .catch((err) => {
-            logError("删除验证消息失败", { error: err.message });
+            warn("删除验证消息失败", { error: err.message, userId, messageId: message.message_id });
           });
         await bot.answerCallbackQuery(callbackId, {
           text: "验证失败，已被移除。",
