@@ -31,6 +31,21 @@ const checkGroupWhitelist = (msg) => {
 };
 
 /**
+ * 检查是否在允许的群组中（用于命令处理器）
+ * @param {Object} msg - 消息对象
+ * @returns {boolean} - 是否通过检查
+ */
+const checkGroupWhitelistForCommand = (msg) => {
+  const chatId = msg.chat.id;
+
+  if (config.enableGroupWhitelist && msg.chat.type.includes("group") && !config.allowedGroups.includes(chatId)) {
+    const error = createErrorWithChatId("❌ 此群组未被授权使用机器人。", chatId);
+    throw error;
+  }
+  return true;
+};
+
+/**
  * 检查机器人是否为管理员
  * @param {Object} bot - Telegram Bot 实例
  * @param {Object} msg - 消息对象
@@ -85,6 +100,7 @@ const buildPermissionsReport = (botAdmin) => {
 module.exports = {
   checkIfInGroup,
   checkGroupWhitelist,
+  checkGroupWhitelistForCommand,
   checkBotAdmin,
   buildPermissionsReport,
 };

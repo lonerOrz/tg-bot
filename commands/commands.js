@@ -1,27 +1,28 @@
-const permissionsCheck = require("./permissions");
-const handleHello = require("./hello");
-const handleTestVerify = require("./testVerify");
-const handleDice = require("./dice");
-const { checkGroupWhitelist } = require("../services/permissionService");
+const commandHandler = require('./commandHandler');
 
-const commands = {
-  "/checkbot": permissionsCheck,
-  "/hello": handleHello,
-  "/testverify": handleTestVerify,
-  "/dice": handleDice,
-};
+// 导入所有命令处理器
+const permissionsCheck = require('./permissions');
+const handleHello = require('./hello');
+const handleTestVerify = require('./testVerify');
+const handleDice = require('./dice');
 
+// 注册所有命令
+// /checkbot 仅在群组中可用，不需要白名单验证（因为它用于检查机器人权限）
+commandHandler
+  .register('/checkbot', permissionsCheck, { requiresGroup: true, requiresWhitelist: false })
+  // /hello 可在任意地方使用，但如果是群组则需要白名单验证
+  .register('/hello', handleHello, { requiresWhitelist: true })
+  // /testverify 可在任意地方使用，不需要白名单验证
+  .register('/testverify', handleTestVerify, { requiresWhitelist: false })
+  // /dice 可在任意地方使用，但如果是群组则需要白名单验证
+  .register('/dice', handleDice, { requiresWhitelist: true });
+
+/**
+ * 命令分发器 - 统一处理所有机器人命令
+ * @param {import('node-telegram-bot-api')} bot - Telegram Bot 实例
+ * @param {Object} msg - 消息对象
+ * @returns {Promise<boolean>} - 是否成功执行了命令
+ */
 module.exports = async (bot, msg) => {
-  const text = msg.text.trim();
-  const cmd = text.split(" ")[0].split("@")[0];
-
-  // 检查是否在允许的群组中
-  checkGroupWhitelist(msg);
-
-  const handler = commands[cmd];
-  if (handler) {
-    // 这里不再需要 try/catch，因为错误会由 webhook.js 统一处理
-    await handler(bot, msg);
-  }
-  // 如果没有匹配的命令，则不执行任何操作
+  return await commandHandler.execute(bot, msg);
 };

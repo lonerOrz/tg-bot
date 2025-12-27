@@ -3,7 +3,12 @@
  * 管理群组白名单、机器人token等核心配置
  */
 
-// 从环境变量获取配置，如果未设置则使用默认值
+const { error } = require('./utils/logger');
+
+/**
+ * 从环境变量获取配置
+ * @returns {Object} 配置对象
+ */
 const getConfig = () => {
   return {
     // 机器人token
@@ -33,6 +38,50 @@ const getConfig = () => {
   };
 };
 
+/**
+ * 验证配置项是否正确设置
+ * @param {Object} config - 配置对象
+ * @returns {boolean} 配置是否有效
+ */
+const validateConfig = (config) => {
+  const errors = [];
+  
+  // 验证必填项
+  if (!config.telegramToken) {
+    errors.push('TELEGRAM_TOKEN is required');
+  }
+  
+  // 验证验证超时时间
+  if (isNaN(config.verificationTimeout) || config.verificationTimeout <= 0) {
+    errors.push('VERIFICATION_TIMEOUT must be a positive number');
+  }
+  
+  // 验证群组ID列表
+  if (config.allowedGroups.some(id => isNaN(id))) {
+    errors.push('All ALLOWED_GROUPS must be valid numbers');
+  }
+  
+  // 验证管理员ID列表
+  if (config.adminUsers.some(id => isNaN(id))) {
+    errors.push('All ADMIN_USERS must be valid numbers');
+  }
+
+  if (errors.length > 0) {
+    error('Configuration validation failed:', errors.join('; '));
+    return false;
+  }
+  
+  return true;
+};
+
 // 导出配置
 const config = getConfig();
+
+// 在应用启动时验证配置
+if (!validateConfig(config)) {
+  console.error('Configuration validation failed. Some features may not work properly.');
+} else {
+  console.log('Configuration validated successfully');
+}
+
 module.exports = config;

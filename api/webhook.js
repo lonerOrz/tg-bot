@@ -5,6 +5,7 @@ const config = require("../config");
 const { handleCommandError } = require("../services/errorHandler");
 const { info, warn, error } = require("../utils/logger");
 
+// 初始化机器人实例
 const bot = new TelegramBot(config.telegramToken);
 
 module.exports = async (request, response) => {
