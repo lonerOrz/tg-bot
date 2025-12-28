@@ -9,9 +9,10 @@ const path = require('path');
 /**
  * 扫描命令目录并注册命令
  * @param {Object} bot - Telegram Bot 实例
+ * @param {Object} pluginManager - 插件管理器实例（可选）
  * @returns {Promise<boolean>} - 注册是否成功
  */
-const registerBotCommands = async (bot) => {
+const registerBotCommands = async (bot, pluginManager = null) => {
   try {
     // 命令目录路径
     const commandsDir = path.join(__dirname);
@@ -26,6 +27,10 @@ const registerBotCommands = async (bot) => {
       // 只处理 .js 文件且不在排除列表中
       if (file.endsWith('.js') && !excludeFiles.includes(file)) {
         const filePath = path.join(commandsDir, file);
+        
+        // 删除缓存以确保获取最新版本
+        delete require.cache[require.resolve(filePath)];
+        
         const commandModule = require(filePath);
         
         // 如果模块导出元数据，则使用元数据注册命令
@@ -35,8 +40,14 @@ const registerBotCommands = async (bot) => {
       }
     }
     
+    // 如果提供了插件管理器，也添加插件的命令
+    if (pluginManager) {
+      const pluginCommands = pluginManager.getPluginCommands();
+      botCommands.push(...pluginCommands);
+    }
+    
     // 获取当前已注册的命令
-    const currentCommands = await bot.getMyCommands();
+    const currentCommands = await bot.getMyCommands().catch(() => ({ commands: [] }));
     
     // 比较当前命令和需要注册的命令
     const currentCommandList = currentCommands.commands || [];

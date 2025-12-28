@@ -8,9 +8,12 @@ const { checkGroupWhitelistForCommand } = require('../services/permissionService
 class CommandHandler {
   /**
    * 创建命令处理器实例
+   * @param {Object} container - 依赖注入容器
    */
-  constructor() {
+  constructor(container) {
     this.commands = new Map();
+    this.container = container;
+    // 不再从容器中获取 eventBus，因为事件发布将在 webhook 层面处理
   }
 
   /**
@@ -76,4 +79,4 @@ class CommandHandler {
   }
 }
 
-module.exports = new CommandHandler();
+module.exports = CommandHandler;

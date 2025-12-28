@@ -55,6 +55,11 @@ module.exports.commandMetadata = {
 - `/checkbot` - 检查机器人在群组中的权限
 - `/testverify` - 测试验证逻辑
 
+以下是在 plugins 目录中定义的插件命令：
+
+- `/greet` - 插件提供的问候命令
+- `/help` - 插件提供的帮助命令
+
 ## 实现原理
 
 1. `commands/registerCommands.js` - 扫描命令目录并自动注册，会比较当前命令和需要注册的命令，避免不必要的重复注册
