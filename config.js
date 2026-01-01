@@ -35,6 +35,16 @@ const getConfig = () => {
       enabled: process.env.KV_ENABLED === 'true',
       prefix: process.env.KV_PREFIX || 'tgbot:',
     },
+
+    // GitHub监控配置
+    githubMonitor: {
+      // 允许监控的仓库列表（逗号分隔）
+      allowedRepos: process.env.ALLOWED_GITHUB_REPOS
+        ? process.env.ALLOWED_GITHUB_REPOS.split(',').map(repo => repo.trim())
+        : [],
+      // 接收通知的用户ID
+      notificationUserId: process.env.NOTIFICATION_USER_ID ? parseInt(process.env.NOTIFICATION_USER_ID) : null,
+    },
   };
 };
 
