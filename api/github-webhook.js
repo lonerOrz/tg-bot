@@ -137,10 +137,13 @@ function buildIssueMessage(action, repoFullName, issue) {
 function buildPullRequestMessage(action, repoFullName, pr) {
   let actionText;
   let actionIcon;
+  let isImportantEvent = false; // 标记是否为重要事件
+
   switch (action) {
     case 'opened':
       actionIcon = '🔀';
       actionText = 'Pull Request opened';
+      isImportantEvent = true;
       break;
     case 'closed':
       if (pr.merged) {
@@ -150,10 +153,12 @@ function buildPullRequestMessage(action, repoFullName, pr) {
         actionIcon = '❌';
         actionText = 'Pull Request closed';
       }
+      isImportantEvent = true;
       break;
     case 'reopened':
       actionIcon = '🔄';
       actionText = 'Pull Request reopened';
+      isImportantEvent = true;
       break;
     case 'assigned':
       actionIcon = '👤';
@@ -174,6 +179,11 @@ function buildPullRequestMessage(action, repoFullName, pr) {
     default:
       actionIcon = 'ℹ️';
       actionText = `Pull Request ${action}`;
+  }
+
+  // 如果不是重要事件，返回null表示不发送通知
+  if (!isImportantEvent) {
+    return null;
   }
 
   const repoUrl = `https://github.com/${repoFullName}`;
@@ -217,14 +227,50 @@ function buildReleaseMessage(action, repoFullName, release) {
 }
 
 /**
- * 处理Star事件
+ * 通用事件处理器
+ * @param {Object} payload - 事件载荷
+ * @param {string} eventType - 事件类型
+ * @param {Function} messageBuilder - 消息构建函数
+ * @param {boolean} isImportantEvent - 是否为重要事件（仅对PR使用）
+ * @param {boolean} checkNotificationEnabled - 是否检查通知开关（默认为true）
  */
-async function handleStarEvent(payload) {
+async function handleEvent(payload, eventType, messageBuilder, isImportantEvent = true, checkNotificationEnabled = true) {
   const repoFullName = payload.repository.full_name;
-  const action = payload.action; // "created" 或 "deleted"
-  const starredBy = payload.sender.login;
+  const action = payload.action;
 
-  console.log(`仓库 ${repoFullName} 的Star事件: ${action}`);
+  // 检查是否启用了对应事件类型的通知
+  let isNotificationEnabled = true;
+  if (checkNotificationEnabled) {
+    switch (eventType) {
+      case 'star':
+        isNotificationEnabled = config.githubMonitor.enableStarNotifications;
+        break;
+      case 'fork':
+        isNotificationEnabled = config.githubMonitor.enableForkNotifications;
+        break;
+      case 'watch':
+        isNotificationEnabled = config.githubMonitor.enableWatchNotifications;
+        break;
+      case 'issue':
+        isNotificationEnabled = config.githubMonitor.enableIssueNotifications;
+        break;
+      case 'pullRequest':
+        isNotificationEnabled = config.githubMonitor.enablePullRequestNotifications;
+        break;
+      case 'release':
+        isNotificationEnabled = config.githubMonitor.enableReleaseNotifications;
+        break;
+      default:
+        isNotificationEnabled = true;
+    }
+
+    if (!isNotificationEnabled) {
+      console.log(`${eventType}事件通知已禁用，跳过处理`);
+      return;
+    }
+  }
+
+  console.log(`仓库 ${repoFullName} 的${eventType}事件: ${action}`);
 
   // 检查仓库是否在允许列表中
   if (!isRepoAllowed(repoFullName)) {
@@ -232,107 +278,103 @@ async function handleStarEvent(payload) {
     return;
   }
 
-  const message = buildStarMessage(action, repoFullName, starredBy);
-  await sendNotification(message);
+  const message = messageBuilder(payload);
+  // 如果消息为null（表示不重要的事件），则不发送通知
+  if (message !== null && isImportantEvent) {
+    await sendNotification(message);
+  }
+}
+
+/**
+ * 处理Star事件
+ */
+async function handleStarEvent(payload) {
+  await handleEvent(
+    payload,
+    'star',
+    (payload) => {
+      const action = payload.action; // "created" 或 "deleted"
+      const starredBy = payload.sender.login;
+      return buildStarMessage(action, payload.repository.full_name, starredBy);
+    }
+  );
 }
 
 /**
  * 处理Fork事件
  */
 async function handleForkEvent(payload) {
-  const repoFullName = payload.repository.full_name;
-  const forker = payload.sender.login;
-
-  console.log(`仓库 ${repoFullName} 的Fork事件`);
-
-  // 检查仓库是否在允许列表中
-  if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
-    return;
-  }
-
-  const message = buildForkMessage(repoFullName, forker);
-  await sendNotification(message);
+  await handleEvent(
+    payload,
+    'fork',
+    (payload) => {
+      const forker = payload.sender.login;
+      return buildForkMessage(payload.repository.full_name, forker);
+    }
+  );
 }
 
 /**
  * 处理Watch事件（关注/取消关注）
  */
 async function handleWatchEvent(payload) {
-  const repoFullName = payload.repository.full_name;
-  const action = payload.action; // "started" 或 "deleted"
-  const watcher = payload.sender.login;
-
-  console.log(`仓库 ${repoFullName} 的Watch事件: ${action}`);
-
-  // 检查仓库是否在允许列表中
-  if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
-    return;
-  }
-
-  const message = buildWatchMessage(action, repoFullName, watcher);
-  await sendNotification(message);
+  await handleEvent(
+    payload,
+    'watch',
+    (payload) => {
+      const action = payload.action; // "started" 或 "deleted"
+      const watcher = payload.sender.login;
+      return buildWatchMessage(action, payload.repository.full_name, watcher);
+    }
+  );
 }
 
 /**
  * 处理Issue事件
  */
 async function handleIssueEvent(payload) {
-  const repoFullName = payload.repository.full_name;
-  const action = payload.action;
-  const issue = payload.issue;
-
-  console.log(`仓库 ${repoFullName} 的Issue事件: ${action}`);
-
-  // 检查仓库是否在允许列表中
-  if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
-    return;
-  }
-
-  const message = buildIssueMessage(action, repoFullName, issue);
-  await sendNotification(message);
+  await handleEvent(
+    payload,
+    'issue',
+    (payload) => {
+      const issue = payload.issue;
+      return buildIssueMessage(payload.action, payload.repository.full_name, issue);
+    }
+  );
 }
 
 /**
  * 处理Pull Request事件
  */
 async function handlePullRequestEvent(payload) {
-  const repoFullName = payload.repository.full_name;
   const action = payload.action;
-  const pr = payload.pull_request;
+  // 判断是否为重要事件
+  const isImportantEvent = ['opened', 'closed', 'reopened'].includes(action) ||
+                          (action === 'closed' && payload.pull_request.merged);
 
-  console.log(`仓库 ${repoFullName} 的PR事件: ${action}`);
-
-  // 检查仓库是否在允许列表中
-  if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
-    return;
-  }
-
-  const message = buildPullRequestMessage(action, repoFullName, pr);
-  await sendNotification(message);
+  await handleEvent(
+    payload,
+    'pullRequest',
+    (payload) => {
+      const pr = payload.pull_request;
+      return buildPullRequestMessage(payload.action, payload.repository.full_name, pr);
+    },
+    isImportantEvent
+  );
 }
 
 /**
  * 处理Release事件
  */
 async function handleReleaseEvent(payload) {
-  const repoFullName = payload.repository.full_name;
-  const action = payload.action;
-  const release = payload.release;
-
-  console.log(`仓库 ${repoFullName} 的Release事件: ${action}`);
-
-  // 检查仓库是否在允许列表中
-  if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
-    return;
-  }
-
-  const message = buildReleaseMessage(action, repoFullName, release);
-  await sendNotification(message);
+  await handleEvent(
+    payload,
+    'release',
+    (payload) => {
+      const release = payload.release;
+      return buildReleaseMessage(payload.action, payload.repository.full_name, release);
+    }
+  );
 }
 
 module.exports = async (request, response) => {

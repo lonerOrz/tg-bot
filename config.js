@@ -44,6 +44,13 @@ const getConfig = () => {
         : [],
       // 接收通知的用户ID
       notificationUserId: process.env.NOTIFICATION_USER_ID ? parseInt(process.env.NOTIFICATION_USER_ID) : null,
+      // 各种事件通知开关
+      enableStarNotifications: process.env.ENABLE_STAR_NOTIFICATIONS !== 'false', // 默认开启
+      enableForkNotifications: process.env.ENABLE_FORK_NOTIFICATIONS !== 'false', // 默认开启
+      enableWatchNotifications: process.env.ENABLE_WATCH_NOTIFICATIONS === 'true', // 默认关闭
+      enableIssueNotifications: process.env.ENABLE_ISSUE_NOTIFICATIONS === 'true', // 默认关闭
+      enablePullRequestNotifications: process.env.ENABLE_PULL_REQUEST_NOTIFICATIONS === 'true', // 默认关闭
+      enableReleaseNotifications: process.env.ENABLE_RELEASE_NOTIFICATIONS !== 'false', // 默认开启
     },
   };
 };
@@ -76,11 +83,31 @@ const validateConfig = (config) => {
     errors.push('All ADMIN_USERS must be valid numbers');
   }
 
+  // 验证GitHub监控配置
+  if (typeof config.githubMonitor.enableStarNotifications !== 'boolean') {
+    errors.push('ENABLE_STAR_NOTIFICATIONS must be a boolean value');
+  }
+  if (typeof config.githubMonitor.enableForkNotifications !== 'boolean') {
+    errors.push('ENABLE_FORK_NOTIFICATIONS must be a boolean value');
+  }
+  if (typeof config.githubMonitor.enableWatchNotifications !== 'boolean') {
+    errors.push('ENABLE_WATCH_NOTIFICATIONS must be a boolean value');
+  }
+  if (typeof config.githubMonitor.enableIssueNotifications !== 'boolean') {
+    errors.push('ENABLE_ISSUE_NOTIFICATIONS must be a boolean value');
+  }
+  if (typeof config.githubMonitor.enablePullRequestNotifications !== 'boolean') {
+    errors.push('ENABLE_PULL_REQUEST_NOTIFICATIONS must be a boolean value');
+  }
+  if (typeof config.githubMonitor.enableReleaseNotifications !== 'boolean') {
+    errors.push('ENABLE_RELEASE_NOTIFICATIONS must be a boolean value');
+  }
+
   if (errors.length > 0) {
     error('Configuration validation failed:', errors.join('; '));
     return false;
   }
-  
+
   return true;
 };
 
