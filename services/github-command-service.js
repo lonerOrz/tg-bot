@@ -126,7 +126,7 @@ class GitHubCommandService {
    * @returns {Object} 处理结果
    */
   async handleBuildCommand(params) {
-    const { args, owner, repo, prNumber } = params;
+    const { args, owner, repo, prNumber, comment, sender } = params;
 
     if (!args) {
       return {
@@ -151,6 +151,9 @@ class GitHubCommandService {
       packageName,
       options,
     );
+
+    // 添加反应到评论
+    await this.addReactionToComment(comment.id, success, owner, repo, sender);
 
     if (success) {
       return {
@@ -323,6 +326,54 @@ class GitHubCommandService {
     };
 
     return helpInfo[command] || `未知命令: ${command}`;
+  }
+
+  /**
+   * 为评论添加反应
+   * @param {number} commentId - 评论ID
+   * @param {boolean} success - 是否成功
+   * @param {string} owner - 仓库所有者
+   * @param {string} repo - 仓库名称
+   * @param {Object} sender - 发送者信息
+   * @returns {Promise<boolean>} 是否成功添加反应
+   */
+  async addReactionToComment(commentId, success, owner, repo, sender) {
+    try {
+      const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+      if (!token) {
+        error('未设置GH_TOKEN或GITHUB_TOKEN环境变量，无法添加反应');
+        return false;
+      }
+
+      // 根据结果选择反应
+      const reaction = success ? '+1' : '-1'; // 👍 或 👎
+
+      const url = `https://api.github.com/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: reaction
+        })
+      });
+
+      if (response.ok) {
+        info(`成功为评论 ${commentId} 添加反应: ${reaction}`);
+        return true;
+      } else {
+        const errorData = await response.json();
+        error(`添加反应失败:`, errorData);
+        return false;
+      }
+    } catch (err) {
+      error(`添加反应时出错:`, err.message);
+      return false;
+    }
   }
 }
 
