@@ -52,6 +52,18 @@ const getConfig = () => {
       enablePullRequestNotifications: process.env.ENABLE_PULL_REQUEST_NOTIFICATIONS === 'true', // 默认关闭
       enableReleaseNotifications: process.env.ENABLE_RELEASE_NOTIFICATIONS !== 'false', // 默认开启
     },
+
+    // GitHub Bot Webhook配置
+    githubBotWebhook: {
+      // GitHub个人访问令牌，用于触发工作流
+      token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || '',
+      // 允许触发构建的GitHub用户ID列表（逗号分隔）
+      allowedUserIds: process.env.GITHUB_ALLOWED_USER_IDS
+        ? process.env.GITHUB_ALLOWED_USER_IDS.split(',').map(id => parseInt(id.trim()))
+        : [],
+      // Webhook密钥，用于验证请求来源
+      secret: process.env.GITHUB_BOT_WEBHOOK_SECRET || process.env.GITHUB_WEBHOOK_SECRET || '',
+    },
   };
 };
 

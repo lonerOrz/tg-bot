@@ -57,3 +57,33 @@ vercel
 - Pull Request（创建、合并、关闭等）
 - Release（发布、更新、删除等）
 - Watch（关注/取消关注）
+
+## GitHub Bot Webhook功能
+
+本机器人支持通过GitHub issue_comment事件触发特定操作，例如触发GitHub Actions工作流。
+
+### 配置Webhook
+
+1. 部署机器人后，获取Webhook URL：`https://<your-deployment-url>/api/loner-bot-webhook`
+2. 在需要监控的GitHub仓库中，进入Settings > Webhooks > Add webhook
+3. 设置Payload URL为上述URL
+4. 选择Content type为`application/json`
+5. 选择触发事件：`Issue comments`
+6. 如果设置了`GITHUB_BOT_WEBHOOK_SECRET`环境变量，请在GitHub中也设置相同的Secret
+
+### 环境变量配置
+
+- `GH_TOKEN` 或 `GITHUB_TOKEN`: GitHub个人访问令牌，用于触发工作流
+- `GITHUB_ALLOWED_USER_IDS`: 允许触发构建的GitHub用户ID列表，逗号分隔（例如：`123456,789012`）
+- `GITHUB_BOT_WEBHOOK_SECRET`: 可选，用于验证webhook请求的密钥
+- `GITHUB_WORKFLOW_ID`: 要触发的工作流ID或文件名（默认为`build-package.yml`）
+
+### 功能说明
+
+当在PR中评论包含`@loneros-bot build <package-name>`时，机器人会：
+1. 验证评论者是否在允许的用户列表中
+2. 提取包名和PR信息
+3. 触发指定的GitHub Actions工作流
+4. 记录操作到日志中
+
+例如，在PR中评论`@loneros-bot build hello`将触发对`hello`包的构建工作流。

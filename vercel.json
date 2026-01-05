@@ -2,6 +2,9 @@
   "functions": {
     "api/github-webhook.js": {
       "maxDuration": 30
+    },
+    "api/loner-bot-webhook.js": {
+      "maxDuration": 10
     }
   }
 }
