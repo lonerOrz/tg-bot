@@ -87,20 +87,19 @@ vercel
 
 支持的命令格式：
 - `@loneros-bot build <package-name>` - 使用默认参数构建包
-- `@loneros-bot build <package-name> +term` - 启用upterm（在默认基础上）
-- `@loneros-bot build <package-name> -x86` - 禁用x86_64-linux构建（在默认基础上）
-- `@loneros-bot build <package-name> +x86 -aarchd` - 启用x86_64-linux，禁用aarch64-darwin
+- `@loneros-bot build <package-name> -h 1100` - 使用数字代码指定构建平台 (1100表示构建Linux平台，不构建Darwin平台)
+- `@loneros-bot build <package-name> -u` - 启用upterm
+- `@loneros-bot build <package-name> -p` - 禁用发布结果
 
 支持的参数：
-- `+x86` / `-x86` - 启用/禁用x86_64-linux平台 (默认: 启用)
-- `+aarch` / `-aarch` - 启用/禁用aarch64-linux平台 (默认: 启用)
-- `+x86d` / `-x86d` - 启用/禁用x86_64-darwin平台 (默认: 启用)
-- `+aarchd` / `-aarchd` - 启用/禁用aarch64-darwin平台 (默认: 启用)
-- `+term` / `-term` - 启用/禁用upterm (默认: 禁用)
-- `+result` / `-result` - 启用/禁用发布结果 (默认: 启用)
-- 也可以使用完整参数名，如 `--x86_64-linux false`
+- `-h <code>` - 使用4位数字代码指定构建平台 (1=启用, 0=禁用): 第1位=x86_64-linux, 第2位=aarch64-linux, 第3位=x86_64-darwin, 第4位=aarch64-darwin
+- `-u` - 启用upterm (默认: 禁用)
+- `-p` - 禁用发布结果 (默认: 启用)
+- `+u` - 禁用upterm (默认: 禁用)
+- `+p` - 启用发布结果 (默认: 启用)
 
 例如：
-- `@loneros-bot build hello` - 使用默认参数构建hello包
-- `@loneros-bot build hello +term` - 构建hello包并启用upterm
-- `@loneros-bot build hello -x86 -aarchd` - 构建hello包，禁用x86_64-linux和aarch64-darwin
+- `@loneros-bot build hello` - 使用默认参数构建hello包 (构建所有平台)
+- `@loneros-bot build hello -h 1100` - 只构建Linux平台 (x86_64-linux和aarch64-linux)
+- `@loneros-bot build hello -h 1010` - 构建x86_64-linux和x86_64-darwin
+- `@loneros-bot build hello -u` - 构建hello包并启用upterm

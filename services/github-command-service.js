@@ -190,66 +190,35 @@ class GitHubCommandService {
       "post-result": true,
     };
 
-    // 简写映射
-    const shorthandMap = {
-      x86: "x86_64-linux",
-      aarch: "aarch64-linux",
-      x86d: "x86_64-darwin",
-      aarchd: "aarch64-darwin",
-      term: "upterm",
-      result: "post-result",
-    };
-
     // 解析选项
     const options = { ...defaultOptions };
+
     for (let i = 1; i < tokens.length; i++) {
       const token = tokens[i];
 
-      if (token.startsWith("+")) {
-        // 启用选项，如 +x86 或 +x86d
-        const key = token.substring(1);
-        const actualKey = shorthandMap[key] || key;
-        if (typeof defaultOptions[actualKey] === "boolean") {
-          // 对于布尔值，+表示true
-          options[actualKey] = true;
-        } else {
-          // 对于非布尔值，+表示使用默认值
-          options[actualKey] = defaultOptions[actualKey];
+      if (token.startsWith("-h")) {
+        // 使用数字组合表示平台选项，如 -h 1100
+        // 1100 表示 x86_64-linux=1(true), aarch64-linux=1(true), x86_64-darwin=0("no"), aarch64-darwin=0("no")
+        const platformCode = token.substring(2).trim() || tokens[++i];
+        if (platformCode && platformCode.length === 4) {
+          const [l64, la64, d64, da64] = platformCode.split('');
+          options['x86_64-linux'] = l64 === '1';
+          options['aarch64-linux'] = la64 === '1';
+          options['x86_64-darwin'] = d64 === '1' ? 'yes_sandbox_relaxed' : 'no';
+          options['aarch64-darwin'] = da64 === '1' ? 'yes_sandbox_relaxed' : 'no';
         }
-      } else if (token.startsWith("-")) {
-        // 禁用选项，如 -x86 或 -x86d
-        const key = token.substring(1);
-        const actualKey = shorthandMap[key] || key;
-        if (typeof defaultOptions[actualKey] === "boolean") {
-          // 对于布尔值，-表示false
-          options[actualKey] = false;
-        } else {
-          // 对于非布尔值，-表示"no"
-          options[actualKey] = "no";
-        }
-      } else if (token.startsWith("--")) {
-        // 长格式选项，如 --x86_64-linux false
-        const [key, value] = token.substring(2).split("=");
-        if (key && value !== undefined) {
-          const actualKey = shorthandMap[key] || key;
-          options[actualKey] = this.parseOptionValue(value);
-        } else if (
-          tokens[i + 1] &&
-          !tokens[i + 1].startsWith("--") &&
-          !tokens[i + 1].startsWith("-") &&
-          !tokens[i + 1].startsWith("+")
-        ) {
-          // 有单独值的选项
-          const actualKey =
-            shorthandMap[token.substring(2)] || token.substring(2);
-          options[actualKey] = this.parseOptionValue(tokens[i + 1]);
-          i++; // 跳过下一个token，因为它已经被用作值
-        } else {
-          // 没有值的布尔选项，设为true
-          const actualKey =
-            shorthandMap[token.substring(2)] || token.substring(2);
-          options[actualKey] = true;
-        }
+      } else if (token === "+u") {
+        // 启用upterm
+        options.upterm = true;
+      } else if (token === "-u") {
+        // 禁用upterm
+        options.upterm = false;
+      } else if (token === "+p") {
+        // 启用post-result (在默认基础上保持启用)
+        options['post-result'] = true;
+      } else if (token === "-p") {
+        // 禁用post-result
+        options['post-result'] = false;
       }
     }
 
