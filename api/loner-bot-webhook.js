@@ -41,9 +41,11 @@ function verifySignature(payload, signature, secret) {
  */
 async function triggerWorkflow(owner, repo, prNumber, packageName, token) {
   try {
-    const workflowId = 'build-pr.yml'; // 默认工作流文件名
-
-    const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`;
+    // 使用硬编码的仓库和工作流路径
+    const targetOwner = 'lonerOrz';
+    const targetRepo = 'nixpkgs-review-gha';
+    const workflowId = 'build-pr.yml'; // 工作流文件名
+    const url = `https://api.github.com/repos/${targetOwner}/${targetRepo}/actions/workflows/${workflowId}/dispatches`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -55,8 +57,8 @@ async function triggerWorkflow(owner, repo, prNumber, packageName, token) {
       body: JSON.stringify({
         ref: 'main', // 或者使用目标分支，可以从环境变量获取
         inputs: {
-          "repo": `${owner}/${repo}`,
-          "pr-number": prNumber.toString(),
+          "repo": `${owner}/${repo}`,  // 使用原始PR的仓库信息
+          "pr-number": prNumber.toString(),  // 使用原始PR号
           "packages": packageName,
           "x86_64-linux": true,
           "aarch64-linux": true,
@@ -69,7 +71,7 @@ async function triggerWorkflow(owner, repo, prNumber, packageName, token) {
     });
 
     if (response.ok) {
-      info(`成功触发工作流: ${packageName} for PR #${prNumber}`);
+      info(`成功触发工作流: ${packageName} for PR #${prNumber} in ${owner}/${repo}`);
       return true;
     } else {
       const errorData = await response.json();
