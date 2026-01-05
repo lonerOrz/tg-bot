@@ -26,6 +26,13 @@ class GitHubCommandService {
     const issue = payload.issue;
     const repository = payload.repository;
     const sender = payload.sender;
+    const action = payload.action; // 添加操作类型检查
+
+    // 只处理创建评论的操作
+    if (action !== 'created') {
+      info(`评论事件操作类型为 ${action}，跳过处理`);
+      return null;
+    }
 
     info(
       `收到评论事件: 仓库=${repository.full_name}, 发送者=${sender.login}, 评论ID=${comment.id}`,
