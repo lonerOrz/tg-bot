@@ -41,8 +41,7 @@ function verifySignature(payload, signature, secret) {
  */
 async function triggerWorkflow(owner, repo, prNumber, packageName, token) {
   try {
-    // 从环境变量获取workflow文件名或ID
-    const workflowId = process.env.GITHUB_WORKFLOW_ID || 'build-package.yml'; // 可以是文件名或数字ID
+    const workflowId = 'build-pr.yml'; // 默认工作流文件名
 
     const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`;
 
