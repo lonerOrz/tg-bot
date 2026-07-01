@@ -1,25 +1,20 @@
-const {
-  checkIfInGroup,
-  checkBotAdmin,
-  buildPermissionsReport
-} = require("../services/permissionService");
+const { Composer } = require("grammy");
+const config = require("../config");
 
-module.exports = async (bot, msg) => {
-  // 检查是否在群组中
-  checkIfInGroup(msg);
+const cmd = new Composer();
 
-  // 检查机器人是否为管理员
-  const botAdmin = await checkBotAdmin(bot, msg);
+cmd.command("permissions", async (ctx) => {
+  const chatId = ctx.chat.id;
+  const userId = ctx.from.id;
 
-  // 构建并发送权限报告
-  const text = buildPermissionsReport(botAdmin);
+  const isAdmin = config.adminUsers.includes(userId);
+  const isWhitelisted = config.allowedGroups.includes(chatId);
 
-  // 直接发送成功消息
-  await bot.sendMessage(msg.chat.id, text, { parse_mode: "Markdown" });
-};
+  let response = `Your permissions:\n\n`;
+  response += `Admin: ${isAdmin ? "Yes" : "No"}\n`;
+  response += `Whitelisted group: ${isWhitelisted ? "Yes" : "No"}\n`;
 
-// 命令元数据
-module.exports.commandMetadata = {
-  command: 'checkbot',
-  description: '检查机器人在群组中的权限'
-};
+  await ctx.reply(response);
+});
+
+module.exports = cmd;

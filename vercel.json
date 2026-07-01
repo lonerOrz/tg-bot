@@ -3,7 +3,7 @@
     "api/github-webhook.js": {
       "maxDuration": 30
     },
-    "api/loner-bot-webhook.js": {
+    "api/github-build-webhook.js": {
       "maxDuration": 10
     }
   }

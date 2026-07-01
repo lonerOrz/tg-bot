@@ -1,53 +1,58 @@
+/**
+ * 验证工具 (支持 Vercel KV)
+ * 处理新成员验证状态，确保在 Serverless 环境下跨请求持久化
+ */
+
 const config = require("../config");
+const { logger } = require("../utils/logger");
 
-// 存储验证状态：userId => { correctOption, timeout }
-let pendingVerifications;
+// 抽象持久化存储接口
+let store;
 
-// 根据配置决定使用哪种存储方式
 if (config.kv.enabled) {
-  // 如果启用KV存储，则使用KV存储
   const { kv } = require('@vercel/kv');
-  const { error: logError } = require('./logger');
-
-  pendingVerifications = {
-    // 使用KV存储的实现
-    get: async (key) => {
-      try {
-        const value = await kv.get(`${config.kv.prefix}verification:${key}`);
-        return value;
-      } catch (error) {
-        logError('KV get error', { error: error.message, key });
-        return null;
-      }
+  store = {
+    get: async (key) => await kv.get(`${config.kv.prefix}verification:${key}`),
+    set: async (key, value, ttlSeconds) => {
+      await kv.set(`${config.kv.prefix}verification:${key}`, value, { ex: ttlSeconds });
     },
-    set: async (key, value) => {
-      try {
-        // 使用配置的超时时间作为过期时间
-        await kv.set(`${config.kv.prefix}verification:${key}`, value, {
-          ex: Math.floor(config.verificationTimeout / 1000) // 转换为秒
-        });
-      } catch (error) {
-        logError('KV set error', { error: error.message, key });
-      }
-    },
-    delete: async (key) => {
-      try {
-        await kv.del(`${config.kv.prefix}verification:${key}`);
-      } catch (error) {
-        logError('KV del error', { error: error.message, key });
-      }
-    }
+    delete: async (key) => await kv.del(`${config.kv.prefix}verification:${key}`)
   };
 } else {
-  // 否则使用内存Map存储
+  // 后备内存存储（仅限开发环境）
   const memoryStore = new Map();
-  pendingVerifications = {
-    get: (key) => memoryStore.get(key),
-    set: (key, value) => memoryStore.set(key, value),
-    delete: (key) => memoryStore.delete(key)
+  store = {
+    get: async (key) => memoryStore.get(key),
+    set: async (key, value, ttlSeconds) => {
+      memoryStore.set(key, value);
+      // 模拟过期
+      setTimeout(() => memoryStore.delete(key), ttlSeconds * 1000);
+    },
+    delete: async (key) => memoryStore.delete(key)
   };
 }
 
+/**
+ * 设置挂起的验证
+ * @param {number} chatId 
+ * @param {number} userId 
+ * @param {Object} data 包含 correctIndex, messageId, timestamp
+ * @param {number} ttlSeconds 有效期（秒）
+ */
+const setPendingVerification = async (chatId, userId, data, ttlSeconds = 300) => {
+  await store.set(`${chatId}:${userId}`, data, ttlSeconds);
+};
+
+const getPendingVerification = async (chatId, userId) => {
+  return await store.get(`${chatId}:${userId}`);
+};
+
+const removePendingVerification = async (chatId, userId) => {
+  await store.delete(`${chatId}:${userId}`);
+};
+
 module.exports = {
-  pendingVerifications,
+  setPendingVerification,
+  getPendingVerification,
+  removePendingVerification,
 };

@@ -1,22 +1,9 @@
-const config = require("../config");
-const { createErrorWithChatId } = require("../services/errorHandler");
+const { Composer } = require("grammy");
 
-module.exports = async (bot, msg) => {
-  const {
-    chat: {
-      id: chatId
-    },
-    chat,
-    text
-  } = msg;
+const cmd = new Composer();
 
-  const message = `✅ Thanks for your message: *"${text}"*\nHave a great day! 👋🏻`;
+cmd.command("hello", async (ctx) => {
+  await ctx.reply("Hey there! I'm your Telegram bot. How can I help you today?");
+});
 
-  await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
-};
-
-// 命令元数据
-module.exports.commandMetadata = {
-  command: 'hello',
-  description: '发送问候语'
-};
+module.exports = cmd;
