@@ -1,29 +1,29 @@
 /**
- * GitHub 构建服务
- * 处理构建命令的逻辑
+ * GitHub Build Service
+ * Handles build command logic
  */
 
 const { logger } = require("../utils/logger");
 
 class GitHubBuildService {
   /**
-   * 处理 build 命令
-   * @param {Object} params - 构建参数
+   * Handle build command
+   * @param {Object} params - Build parameters
    */
   async handleBuildCommand(params) {
     const { args, owner, repo, prNumber, comment, sender } = params;
 
     if (!args) {
-      return { success: false, error: "build命令需要指定包名", errorCode: "MISSING_PACKAGE_NAME" };
+      return { success: false, error: "build command requires package name", errorCode: "MISSING_PACKAGE_NAME" };
     }
 
     const { packageName, options } = this.parseBuildArgs(args);
-    logger.info(`执行 build 命令: ${packageName} for PR #${prNumber} in ${owner}/${repo}`);
+    logger.info(`Executing build command: ${packageName} for PR #${prNumber} in ${owner}/${repo}`);
 
     const success = await this.triggerWorkflow(owner, repo, prNumber, packageName, options);
     await this.addReactionToComment(comment.id, success, owner, repo, sender);
 
-    return success ? { success: true, message: `已成功触发 ${packageName} 的构建` } : { success: false, error: "触发构建失败" };
+    return success ? { success: true, message: `Successfully triggered build for ${packageName}` } : { success: false, error: "Failed to trigger build" };
   }
 
   parseBuildArgs(args) {

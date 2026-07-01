@@ -1,6 +1,6 @@
 /**
- * GitHub Build Webhook 入口
- * 用于处理 PR 构建命令触发
+ * GitHub Build Webhook Entry Point
+ * Handles PR build command triggers
  */
 const githubBuildService = require("../services/github-build-service");
 const { logger } = require("../utils/logger");

@@ -2,6 +2,7 @@ const { Bot, session } = require("grammy");
 const config = require("../config");
 const { logger } = require("../utils/logger");
 const hello = require("../commands/hello");
+const greet = require("../commands/greet");
 const dice = require("../commands/dice");
 const verify = require("../commands/verify");
 const testVerify = require("../commands/testVerify");
@@ -19,6 +20,7 @@ bot.use(async (ctx, next) => {
 });
 
 bot.use(hello);
+bot.use(greet);
 bot.use(dice);
 bot.use(verify);
 bot.use(testVerify);

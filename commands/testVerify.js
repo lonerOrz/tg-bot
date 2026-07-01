@@ -1,4 +1,4 @@
-const { Composer } = require("grammy");
+const { Composer, InlineKeyboard } = require("grammy");
 const config = require("../config");
 const { logger } = require("../utils/logger");
 const state = require("../utils/state");
@@ -29,6 +29,11 @@ cmd.command("testverify", async (ctx) => {
     return ctx.reply("You are not authorized to use this command.");
   }
 
+  // 1. 限制只能在群组中使用测试验证
+  if (ctx.chat.type === "private") {
+    return ctx.reply("❌ Test verification can only be executed within a group or supergroup.");
+  }
+
   const chatId = ctx.chat.id;
   const userId = ctx.from.id;
 
@@ -39,7 +44,6 @@ cmd.command("testverify", async (ctx) => {
 
   const question =
     quizQuestions[Math.floor(Math.random() * quizQuestions.length)];
-  const { InlineKeyboard } = require("grammy");
   const keyboard = new InlineKeyboard();
   question.options.forEach((opt, i) => {
     keyboard.text(opt, `verify_${userId}_${i}`);
@@ -58,8 +62,13 @@ cmd.command("testverify", async (ctx) => {
     timeoutId: setTimeout(async () => {
       try {
         await state.removePendingVerification(chatId, userId);
-        await ctx.api.banChatMember(chatId, userId);
-        await ctx.api.unbanChatMember(chatId, userId);
+        
+        // 2. 只有在非私聊环境才执行封禁
+        if (ctx.chat.type !== "private") {
+          await ctx.api.banChatMember(chatId, userId);
+          await ctx.api.unbanChatMember(chatId, userId);
+        }
+        
         await ctx.api.sendMessage(chatId, "Test verification timed out.");
         await ctx.api.deleteMessage(chatId, sentMessage.message_id);
       } catch (error) {

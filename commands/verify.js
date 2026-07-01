@@ -97,8 +97,15 @@ cmd.callbackQuery(/^verify_(\d+)_(\d+)$/, async (ctx) => {
       chatId,
       `${ctx.from.first_name || "User"} failed verification and was removed.`
     );
-    await ctx.api.banChatMember(chatId, targetUserId);
-    await ctx.api.unbanChatMember(chatId, targetUserId);
+    
+    // 增加群组判断，如果是私聊环境则不调用 ban 接口
+    if (ctx.chat.type !== "private") {
+      await ctx.api.banChatMember(chatId, targetUserId);
+      await ctx.api.unbanChatMember(chatId, targetUserId);
+    } else {
+      await ctx.api.sendMessage(chatId, "⚠️ Note: Banning is not supported in private chats.");
+    }
+    
     await ctx.deleteMessage().catch(() => {});
   }
 });

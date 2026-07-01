@@ -1,11 +1,11 @@
 /**
- * 统一日志记录模块
- * 提供统一的日志记录功能
+ * Unified logging module
+ * Provides unified logging functionality
  */
 
 const config = require("../config");
 
-// 日志级别枚举
+// Log level enumeration
 const LOG_LEVELS = {
   ERROR: 0,
   WARN: 1,
@@ -13,19 +13,19 @@ const LOG_LEVELS = {
   DEBUG: 3,
 };
 
-// 当前日志级别（从配置或环境变量获取）
+// Current log level (from config or environment variable)
 const currentLogLevel = LOG_LEVELS[process.env.LOG_LEVEL] || LOG_LEVELS.INFO;
 
 /**
- * 记录日志
- * @param {string} level - 日志级别
- * @param {string} message - 日志消息
- * @param {Object} meta - 元数据（可选）
+ * Log message
+ * @param {string} level - Log level
+ * @param {string} message - Log message
+ * @param {Object} meta - Metadata (optional)
  */
 const log = (level, message, meta = {}) => {
   const logLevel = LOG_LEVELS[level];
   
-  // 如果当前日志级别低于要记录的级别，则不输出
+  // Skip if current level is lower than the logging level
   if (logLevel > currentLogLevel) {
     return;
   }
@@ -38,7 +38,7 @@ const log = (level, message, meta = {}) => {
     ...meta,
   };
 
-  // 根据级别选择输出流
+  // Select output stream based on level
   if (level === 'ERROR' || level === 'WARN') {
     console.error(JSON.stringify(logEntry));
   } else {
@@ -47,42 +47,42 @@ const log = (level, message, meta = {}) => {
 };
 
 /**
- * 记录信息日志
- * @param {string} message - 日志消息
- * @param {Object} meta - 元数据（可选）
+ * Log info message
+ * @param {string} message - Log message
+ * @param {Object} meta - Metadata (optional)
  */
 const info = (message, meta) => {
   log('INFO', message, meta);
 };
 
 /**
- * 记录警告日志
- * @param {string} message - 日志消息
- * @param {Object} meta - 元数据（可选）
+ * Log warning message
+ * @param {string} message - Log message
+ * @param {Object} meta - Metadata (optional)
  */
 const warn = (message, meta) => {
   log('WARN', message, meta);
 };
 
 /**
- * 记录错误日志
- * @param {string} message - 日志消息
- * @param {Object} meta - 元数据（可选）
+ * Log error message
+ * @param {string} message - Log message
+ * @param {Object} meta - Metadata (optional)
  */
 const error = (message, meta) => {
   log('ERROR', message, meta);
 };
 
 /**
- * 记录调试日志
- * @param {string} message - 日志消息
- * @param {Object} meta - 元数据（可选）
+ * Log debug message
+ * @param {string} message - Log message
+ * @param {Object} meta - Metadata (optional)
  */
 const debug = (message, meta) => {
   log('DEBUG', message, meta);
 };
 
-// 定义一个 logger 对象，整合所有方法
+// Define a logger object
 const logger = {
   info,
   warn,
