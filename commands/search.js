@@ -3,14 +3,25 @@ const { logger } = require("../utils/logger");
 
 const cmd = new Composer();
 
+/**
+ * Escapes HTML special characters to prevent Telegram formatting crashes
+ */
+function escapeHTML(text) {
+  if (!text) return "";
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 cmd.command("search", async (ctx) => {
   const query = ctx.match?.trim();
 
   if (!query) {
     return ctx.reply(
-      "Usage: `/search <package_name>`\nExample: `/search ripgrep`",
+      "Usage: <code>/search &lt;package_name&gt;</code>\nExample: <code>/search ripgrep</code>",
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
       },
     );
   }
@@ -51,36 +62,41 @@ cmd.command("search", async (ctx) => {
     const hits = data.hits?.hits || [];
 
     if (hits.length === 0) {
-      return ctx.reply(`❌ No packages found matching \`${query}\`.`, {
-        parse_mode: "Markdown",
-      });
+      return ctx.reply(
+        `No packages found matching <code>${escapeHTML(query)}</code>.`,
+        {
+          parse_mode: "HTML",
+        },
+      );
     }
 
-    let replyText = `🔍 *Search results for:* \`${query}\`\n\n`;
+    let replyText = `<b>N I X P K G S   S E A R C H</b>\n`;
+    replyText += `───────────────────────────\n\n`;
 
     hits.forEach((hit, index) => {
       const source = hit._source;
-      const name = source.package_pname || "Unknown";
-      const version = source.package_pversion || "N/A"; // Fixed field name to package_pversion
-      const desc = source.package_description || "No description provided.";
+      const name = escapeHTML(source.package_pname || "Unknown");
+      const version = escapeHTML(source.package_pversion || "N/A");
+      const desc = escapeHTML(
+        source.package_description || "No description provided.",
+      );
       const homepage = source.package_homepage?.[0] || "";
 
+      replyText += `[${index + 1}] <b>${name}</b>  •  v${version}\n`;
+      replyText += `<i>${desc}</i>\n`;
       if (homepage) {
-        replyText += `${index + 1}. *[${name}](${homepage})* (v${version})\n_${desc}_\n\n`;
-      } else {
-        replyText += `${index + 1}. *${name}* (v${version})\n_${desc}_\n\n`;
+        replyText += `↳ <a href="${homepage}">Project Homepage</a>\n`;
       }
+      replyText += `\n`;
     });
 
     await ctx.reply(replyText, {
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       disable_web_page_preview: true,
     });
   } catch (error) {
     logger.error("Error searching Nix package:", error);
-    await ctx.reply(
-      "⚠️ Failed to search for Nix packages. Please try again later.",
-    );
+    await ctx.reply("System error. Failed to perform Nix package search.");
   }
 });
 
