@@ -3,8 +3,6 @@
  * Provides unified logging functionality
  */
 
-const config = require("../config");
-
 // Log level enumeration
 const LOG_LEVELS = {
   ERROR: 0,
