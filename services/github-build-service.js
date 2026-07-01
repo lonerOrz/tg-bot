@@ -4,6 +4,7 @@
  */
 
 const { logger } = require("../utils/logger");
+const config = require("../config");
 const crypto = require("crypto");
 
 class GitHubBuildService {
@@ -12,8 +13,8 @@ class GitHubBuildService {
    * @returns {string} Signed JWT
    */
   generateJWT() {
-    const appId = process.env.GITHUB_APP_ID || "2596089";
-    const rawPrivateKey = process.env.GITHUB_PRIVATE_KEY;
+    const appId = config.githubAppBuild.appId;
+    const rawPrivateKey = config.githubAppBuild.privateKey;
     
     if (!rawPrivateKey) {
       throw new Error("GITHUB_PRIVATE_KEY environment variable is missing.");
@@ -113,22 +114,28 @@ class GitHubBuildService {
       // 1. Get access token for the PR comment repository (for adding reaction)
       const sourceRepoToken = await this.getInstallationAccessToken(owner, repo, installationId);
 
-      // 2. Get access token for GHA runner repository to trigger workflow
-      const targetOwner = "lonerOrz";
-      const targetRepo = "nixpkgs-review-gha";
-      const targetRepoToken = await this.getInstallationAccessToken(targetOwner, targetRepo);
+      // 2. Get access token for GHA runner repository
+      const targetOwner = config.githubAppBuild.targetOwner;
+      const targetRepo = config.githubAppBuild.targetRepo;
+      
+      let targetRepoToken;
+      // If the target repository has the same owner, we can reuse the same token directly!
+      if (targetOwner === owner) {
+        targetRepoToken = sourceRepoToken;
+      } else {
+        targetRepoToken = await this.getInstallationAccessToken(targetOwner, targetRepo);
+      }
 
-      // 3. Trigger workflow
+      // 3. Trigger workflow using the target token
       const success = await this.triggerWorkflow(owner, repo, prNumber, packageName, targetRepoToken, options);
 
-      // 4. Post reaction to comment
+      // 4. Post reaction to comment using the source token
       await this.addReactionToComment(comment.id, success, owner, repo, sourceRepoToken);
 
       return success 
         ? { success: true, message: `Successfully triggered build for ${packageName}` } 
         : { success: false, error: "Failed to trigger build" };
     } catch (err) {
-      // Wrap the Error object in a plain object so JSON.stringify can serialize it
       logger.error("Error in handleBuildCommand:", {
         error_message: err.message,
         error_stack: err.stack
@@ -162,8 +169,8 @@ class GitHubBuildService {
   }
 
   async triggerWorkflow(owner, repo, prNumber, packageName, token, options = {}) {
-    const targetOwner = "lonerOrz";
-    const targetRepo = "nixpkgs-review-gha";
+    const targetOwner = config.githubAppBuild.targetOwner;
+    const targetRepo = config.githubAppBuild.targetRepo;
     const url = `https://api.github.com/repos/${targetOwner}/${targetRepo}/actions/workflows/build-pr.yml/dispatches`;
 
     const response = await fetch(url, {
