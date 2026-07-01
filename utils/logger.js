@@ -82,10 +82,20 @@ const debug = (message, meta) => {
   log('DEBUG', message, meta);
 };
 
+// 定义一个 logger 对象，整合所有方法
+const logger = {
+  info,
+  warn,
+  error,
+  debug,
+  LOG_LEVELS,
+};
+
 module.exports = {
   info,
   warn,
   error,
   debug,
   LOG_LEVELS,
+  logger,
 };
