@@ -1,6 +1,6 @@
 /**
  * GitHub Build Webhook Entry Point
- * Handles PR build command triggers
+ * Handles PR build command triggers using GitHub App Installation context
  */
 const githubBuildService = require("../services/github-build-service");
 const { logger } = require("../utils/logger");
@@ -55,7 +55,8 @@ module.exports = async (request, response) => {
           repo: payload.repository.name,
           prNumber: payload.issue.number,
           comment: payload.comment,
-          sender: payload.sender
+          sender: payload.sender,
+          installationId: payload.installation ? payload.installation.id : null
         });
         return response.status(result.success ? 200 : 500).json(result);
       }
