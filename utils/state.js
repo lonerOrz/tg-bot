@@ -4,7 +4,6 @@
  */
 
 const config = require("../config");
-const { logger } = require("../utils/logger");
 
 // Abstract storage interface
 let store;

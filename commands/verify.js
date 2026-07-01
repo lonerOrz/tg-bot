@@ -1,6 +1,5 @@
 const { Composer, InlineKeyboard } = require("grammy");
 const config = require("../config");
-const { logger } = require("../utils/logger");
 const state = require("../utils/state");
 
 const VERIFICATION_TIMEOUT = config.verificationTimeout || 300000;

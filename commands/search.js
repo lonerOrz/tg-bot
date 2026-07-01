@@ -1,5 +1,4 @@
 const { Composer } = require("grammy");
-const { logger } = require("../utils/logger");
 
 const cmd = new Composer();
 
@@ -58,9 +57,7 @@ cmd.command("search", async (ctx) => {
 
     if (!response.ok) {
       const errBody = await response.text();
-      logger.error(`Nix Search API error: ${response.status}`, {
-        response: errBody,
-      });
+      console.error(`Nix Search API error: ${response.status}`, errBody);
       throw new Error(`Nix Search API error: ${response.status}`);
     }
 
@@ -144,7 +141,7 @@ cmd.command("search", async (ctx) => {
       disable_web_page_preview: true,
     });
   } catch (error) {
-    logger.error("Error searching Nix package:", error);
+    console.error("Error searching Nix package:", error);
     await ctx.reply("System error. Failed to perform Nix package search.");
   }
 });

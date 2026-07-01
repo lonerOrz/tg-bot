@@ -1,84 +1,34 @@
-/**
- * GitHub Build Service
- * Handles build command logic using GitHub App Installation tokens
- */
-
-const { logger } = require("../utils/logger");
 const config = require("../config");
 const crypto = require("crypto");
 
-class GitHubBuildService {
-  /**
-   * Generates a JSON Web Token (JWT) signed with RS256 using the GitHub App private key.
-   * @returns {string} Signed JWT
-   */
-  generateJWT() {
-    const appId = config.githubAppBuild.appId;
-    const rawPrivateKey = config.githubAppBuild.privateKey;
-    
-    if (!rawPrivateKey) {
-      throw new Error("GITHUB_PRIVATE_KEY environment variable is missing.");
-    }
-    
-    // Replace escaped newlines with actual newlines to support Vercel multi-line environment variables
-    const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+function generateJWT() {
+  const appId = config.githubAppBuild.appId;
+  const rawPrivateKey = config.githubAppBuild.privateKey;
 
-    const header = {
-      alg: "RS256",
-      typ: "JWT"
-    };
-
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      iat: now - 60, // 1 minute in the past to account for clock drift
-      exp: now + 540, // 9 minutes in the future (max limit is 10 minutes)
-      iss: appId
-    };
-
-    const headerEncoded = Buffer.from(JSON.stringify(header)).toString("base64url");
-    const payloadEncoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
-
-    const data = `${headerEncoded}.${payloadEncoded}`;
-    const signature = crypto.sign("RSA-SHA256", Buffer.from(data), privateKey);
-    const signatureEncoded = signature.toString("base64url");
-
-    return `${data}.${signatureEncoded}`;
+  if (!rawPrivateKey) {
+    throw new Error("GITHUB_PRIVATE_KEY environment variable is missing.");
   }
 
-  /**
-   * Fetches the short-lived installation access token for a specific repository.
-   * @param {string} owner - Repository owner
-   * @param {string} repo - Repository name
-   * @param {number|null} installationId - Optional installation ID
-   * @returns {Promise<string>} Access token
-   */
-  async getInstallationAccessToken(owner, repo, installationId = null) {
-    const jwt = this.generateJWT();
-    let targetInstallationId = installationId;
+  const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
 
-    if (!targetInstallationId) {
-      const instUrl = `https://api.github.com/repos/${owner}/${repo}/installation`;
-      const instRes = await fetch(instUrl, {
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "User-Agent": "telegram-bot-loneros"
-        }
-      });
+  const header = { alg: "RS256", typ: "JWT" };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = { iat: now - 60, exp: now + 540, iss: appId };
 
-      if (!instRes.ok) {
-        const errText = await instRes.text();
-        throw new Error(`Failed to fetch installation ID for ${owner}/${repo}: ${instRes.status} ${errText}`);
-      }
+  const headerEncoded = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const payloadEncoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const data = `${headerEncoded}.${payloadEncoded}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(data), privateKey);
 
-      const instData = await instRes.json();
-      targetInstallationId = instData.id;
-    }
+  return `${data}.${signature.toString("base64url")}`;
+}
 
-    const tokenUrl = `https://api.github.com/app/installations/${targetInstallationId}/access_tokens`;
-    const tokenRes = await fetch(tokenUrl, {
-      method: "POST",
+async function getInstallationAccessToken(owner, repo, installationId = null) {
+  const jwt = generateJWT();
+  let targetInstallationId = installationId;
+
+  if (!targetInstallationId) {
+    const instRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
       headers: {
         Authorization: `Bearer ${jwt}`,
         Accept: "application/vnd.github+json",
@@ -86,127 +36,120 @@ class GitHubBuildService {
         "User-Agent": "telegram-bot-loneros"
       }
     });
-
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      throw new Error(`Failed to generate installation access token: ${tokenRes.status} ${errText}`);
+    if (!instRes.ok) {
+      const errText = await instRes.text();
+      throw new Error(`Failed to fetch installation ID for ${owner}/${repo}: ${instRes.status} ${errText}`);
     }
-
-    const tokenData = await tokenRes.json();
-    return tokenData.token;
+    targetInstallationId = (await instRes.json()).id;
   }
 
-  /**
-   * Handle build command using GitHub App authentication
-   * @param {Object} params - Build parameters
-   */
-  async handleBuildCommand(params) {
-    const { args, owner, repo, prNumber, comment, sender, installationId } = params;
-
-    if (!args) {
-      return { success: false, error: "build command requires package name", errorCode: "MISSING_PACKAGE_NAME" };
+  const tokenRes = await fetch(`https://api.github.com/app/installations/${targetInstallationId}/access_tokens`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "telegram-bot-loneros"
     }
+  });
+  if (!tokenRes.ok) {
+    const errText = await tokenRes.text();
+    throw new Error(`Failed to generate installation access token: ${tokenRes.status} ${errText}`);
+  }
+  return (await tokenRes.json()).token;
+}
 
-    const { packageName, options } = this.parseBuildArgs(args);
-    logger.info(`Executing build command: ${packageName} for PR #${prNumber} in ${owner}/${repo}`);
+function parseBuildArgs(args) {
+  const tokens = args.trim().split(/\s+/);
+  const packageName = tokens[0];
+  const options = { "x86_64-linux": true, "aarch64-linux": true, "x86_64-darwin": "yes_sandbox_relaxed", "aarch64-darwin": "yes_sandbox_relaxed", upterm: false, "post-result": true };
 
-    try {
-      // 1. Get access token for the PR comment repository (for adding reaction)
-      const sourceRepoToken = await this.getInstallationAccessToken(owner, repo, installationId);
-
-      // 2. Get access token for GHA runner repository
-      const targetOwner = config.githubAppBuild.targetOwner;
-      const targetRepo = config.githubAppBuild.targetRepo;
-      
-      let targetRepoToken;
-      // If the target repository has the same owner, we can reuse the same token directly!
-      if (targetOwner === owner) {
-        targetRepoToken = sourceRepoToken;
-      } else {
-        targetRepoToken = await this.getInstallationAccessToken(targetOwner, targetRepo);
+  for (let i = 1; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.startsWith("-h")) {
+      const platformCode = token.substring(2).trim() || tokens[++i];
+      if (platformCode && platformCode.length === 4) {
+        const [l64, la64, d64, da64] = platformCode.split('');
+        options['x86_64-linux'] = l64 === '1';
+        options['aarch64-linux'] = la64 === '1';
+        options['x86_64-darwin'] = d64 === '1' ? 'yes_sandbox_relaxed' : 'no';
+        options['aarch64-darwin'] = da64 === '1' ? 'yes_sandbox_relaxed' : 'no';
       }
+    } else if (token === "+u") options.upterm = true;
+    else if (token === "-u") options.upterm = false;
+    else if (token === "+p") options['post-result'] = true;
+    else if (token === "-p") options['post-result'] = false;
+  }
+  return { packageName, options };
+}
 
-      // 3. Trigger workflow using the target token
-      const success = await this.triggerWorkflow(owner, repo, prNumber, packageName, targetRepoToken, options);
+async function triggerWorkflow(owner, repo, prNumber, packageName, token, options = {}) {
+  const targetOwner = config.githubAppBuild.targetOwner;
+  const targetRepo = config.githubAppBuild.targetRepo;
 
-      // 4. Post reaction to comment using the source token
-      await this.addReactionToComment(comment.id, success, owner, repo, sourceRepoToken);
+  const response = await fetch(`https://api.github.com/repos/${targetOwner}/${targetRepo}/actions/workflows/build-pr.yml/dispatches`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github.v3+json",
+      "Content-Type": "application/json",
+      "User-Agent": "telegram-bot-loneros"
+    },
+    body: JSON.stringify({
+      ref: "main",
+      inputs: {
+        repo: `${owner}/${repo}`,
+        "pr-number": prNumber.toString(),
+        packages: packageName,
+        ...options
+      }
+    }),
+  });
+  return response.ok;
+}
 
-      return success 
-        ? { success: true, message: `Successfully triggered build for ${packageName}` } 
-        : { success: false, error: "Failed to trigger build" };
-    } catch (err) {
-      logger.error("Error in handleBuildCommand:", {
-        error_message: err.message,
-        error_stack: err.stack
-      });
-      return { success: false, error: err.message };
-    }
+async function addReactionToComment(commentId, success, owner, repo, token) {
+  await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'telegram-bot-loneros'
+    },
+    body: JSON.stringify({ content: success ? '+1' : '-1' })
+  });
+}
+
+async function handleBuildCommand(params) {
+  const { args, owner, repo, prNumber, comment, installationId } = params;
+
+  if (!args) {
+    return { success: false, error: "build command requires package name" };
   }
 
-  parseBuildArgs(args) {
-    const tokens = args.trim().split(/\s+/);
-    const packageName = tokens[0];
-    const options = { "x86_64-linux": true, "aarch64-linux": true, "x86_64-darwin": "yes_sandbox_relaxed", "aarch64-darwin": "yes_sandbox_relaxed", upterm: false, "post-result": true };
+  const { packageName, options } = parseBuildArgs(args);
+  console.log(`Executing build command: ${packageName} for PR #${prNumber} in ${owner}/${repo}`);
 
-    for (let i = 1; i < tokens.length; i++) {
-      const token = tokens[i];
-      if (token.startsWith("-h")) {
-        const platformCode = token.substring(2).trim() || tokens[++i];
-        if (platformCode && platformCode.length === 4) {
-          const [l64, la64, d64, da64] = platformCode.split('');
-          options['x86_64-linux'] = l64 === '1';
-          options['aarch64-linux'] = la64 === '1';
-          options['x86_64-darwin'] = d64 === '1' ? 'yes_sandbox_relaxed' : 'no';
-          options['aarch64-darwin'] = da64 === '1' ? 'yes_sandbox_relaxed' : 'no';
-        }
-      } else if (token === "+u") options.upterm = true;
-      else if (token === "-u") options.upterm = false;
-      else if (token === "+p") options['post-result'] = true;
-      else if (token === "-p") options['post-result'] = false;
-    }
-    return { packageName, options };
-  }
+  try {
+    const sourceRepoToken = await getInstallationAccessToken(owner, repo, installationId);
 
-  async triggerWorkflow(owner, repo, prNumber, packageName, token, options = {}) {
     const targetOwner = config.githubAppBuild.targetOwner;
     const targetRepo = config.githubAppBuild.targetRepo;
-    const url = `https://api.github.com/repos/${targetOwner}/${targetRepo}/actions/workflows/build-pr.yml/dispatches`;
+    const targetRepoToken = targetOwner === owner
+      ? sourceRepoToken
+      : await getInstallationAccessToken(targetOwner, targetRepo);
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { 
-        Authorization: `Bearer ${token}`, 
-        Accept: "application/vnd.github.v3+json", 
-        "Content-Type": "application/json",
-        "User-Agent": "telegram-bot-loneros" 
-      },
-      body: JSON.stringify({
-        ref: "main",
-        inputs: {
-          repo: `${owner}/${repo}`,
-          "pr-number": prNumber.toString(),
-          packages: packageName,
-          ...options
-        }
-      }),
-    });
-    return response.ok;
-  }
+    const success = await triggerWorkflow(owner, repo, prNumber, packageName, targetRepoToken, options);
+    await addReactionToComment(comment.id, success, owner, repo, sourceRepoToken);
 
-  async addReactionToComment(commentId, success, owner, repo, token) {
-    const url = `https://api.github.com/repos/${owner}/${repo}/issues/comments/${commentId}/reactions`;
-    await fetch(url, {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${token}`, 
-        'Accept': 'application/vnd.github+json', 
-        'Content-Type': 'application/json',
-        'User-Agent': 'telegram-bot-loneros'
-      },
-      body: JSON.stringify({ content: success ? '+1' : '-1' })
-    });
+    return success
+      ? { success: true, message: `Successfully triggered build for ${packageName}` }
+      : { success: false, error: "Failed to trigger build" };
+  } catch (err) {
+    console.error("Error in handleBuildCommand:", err.message);
+    return { success: false, error: err.message };
   }
 }
 
-module.exports = new GitHubBuildService();
+module.exports = { handleBuildCommand };
