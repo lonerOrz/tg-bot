@@ -20,9 +20,9 @@ cmd.command("search", async (ctx) => {
       "aWVSALXpZv:X8gPHnzL52wFEekuxsfQ9cSh",
     ).toString("base64");
 
-    // Querying the NixOS Elasticsearch backend directly
+    // Using a wildcard 'latest-*-nixos-unstable' to make the endpoint future-proof
     const response = await fetch(
-      "https://search.nixos.org/backend/latest-44-nixos-unstable/_search",
+      "https://search.nixos.org/backend/latest-*-nixos-unstable/_search",
       {
         method: "POST",
         headers: {
@@ -36,12 +36,16 @@ cmd.command("search", async (ctx) => {
               fields: ["package_pname", "package_description"],
             },
           },
-          size: 5, // Retrieve the top 5 most relevant results
+          size: 5,
         }),
       },
     );
 
     if (!response.ok) {
+      const errBody = await response.text();
+      logger.error(`Nix Search API error: ${response.status}`, {
+        response: errBody,
+      });
       throw new Error(`Nix Search API error: ${response.status}`);
     }
 

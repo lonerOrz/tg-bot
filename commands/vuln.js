@@ -30,14 +30,16 @@ async function checkPackageVulnerabilities(packageName, version) {
 }
 
 /**
- * Helper function to fetch the latest package version from Nixpkgs unstable
+ * Helper function to fetch the latest package version from Nixpkgs unstable using a future-proof wildcard index
  */
 async function getLatestNixVersion(packageName) {
   const credentials = Buffer.from(
     "aWVSALXpZv:X8gPHnzL52wFEekuxsfQ9cSh",
   ).toString("base64");
+
+  // Using wildcard index to prevent breakage when schema version updates
   const response = await fetch(
-    "https://search.nixos.org/backend/latest-44-nixos-unstable/_search",
+    "https://search.nixos.org/backend/latest-*-nixos-unstable/_search",
     {
       method: "POST",
       headers: {
@@ -56,6 +58,10 @@ async function getLatestNixVersion(packageName) {
   );
 
   if (!response.ok) {
+    const errBody = await response.text();
+    logger.error(`Nix Version Fetch error: ${response.status}`, {
+      response: errBody,
+    });
     return null;
   }
 
