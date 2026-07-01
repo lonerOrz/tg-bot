@@ -42,10 +42,16 @@ cmd.command("search", async (ctx) => {
           query: {
             multi_match: {
               query: query,
-              fields: ["package_pname", "package_description"],
+              // Prioritize package name and attribute path over description match
+              fields: [
+                "package_pname^5",
+                "package_attr_name^3",
+                "package_description",
+              ],
+              type: "best_fields",
             },
           },
-          size: 5,
+          size: 15,
         }),
       },
     );
@@ -70,24 +76,67 @@ cmd.command("search", async (ctx) => {
       );
     }
 
+    // Filter out duplicate package_attr_name outputs to keep results distinct and clear
+    const uniqueHits = [];
+    const seenAttrs = new Set();
+    for (const hit of hits) {
+      const source = hit._source;
+      if (!source) continue;
+      const attrName = source.package_attr_name;
+      if (attrName && !seenAttrs.has(attrName)) {
+        seenAttrs.add(attrName);
+        uniqueHits.push(hit);
+      }
+    }
+
+    // Render top 5 unique results
+    const displayedHits = uniqueHits.slice(0, 5);
+
     let replyText = `<b>N I X P K G S   S E A R C H</b>\n`;
     replyText += `───────────────────────────\n\n`;
 
-    hits.forEach((hit, index) => {
+    displayedHits.forEach((hit) => {
       const source = hit._source;
+
       const name = escapeHTML(source.package_pname || "Unknown");
       const version = escapeHTML(source.package_pversion || "N/A");
+      const attrName = escapeHTML(source.package_attr_name || name);
       const desc = escapeHTML(
         source.package_description || "No description provided.",
       );
       const homepage = source.package_homepage?.[0] || "";
+      const position = source.package_position || "";
 
-      replyText += `[${index + 1}] <b>${name}</b>  •  v${version}\n`;
-      replyText += `<i>${desc}</i>\n`;
-      if (homepage) {
-        replyText += `↳ <a href="${homepage}">Project Homepage</a>\n`;
+      // Map licenses to a clean string
+      const licenseList = source.package_license || [];
+      const licenseStr = escapeHTML(
+        licenseList
+          .map((l) => l.fullName || l.spdxId)
+          .filter(Boolean)
+          .join(", ") || "Unknown License",
+      );
+
+      // Generate a direct link to the exact Nix expression line on GitHub nixpkgs repository
+      let positionLinkHtml = "";
+      if (position) {
+        // Transforms 'pkgs/by-name/.../package.nix:66' to 'pkgs/by-name/.../package.nix#L66'
+        const cleanPosition = position.replace(":", "#L");
+        const positionUrl = `https://github.com/NixOS/nixpkgs/blob/master/${cleanPosition}`;
+        positionLinkHtml = `  •  <a href="${positionUrl}">Nix Source</a>`;
       }
-      replyText += `\n`;
+
+      // 1st line: Title (hyperlinked to homepage) & Version
+      if (homepage) {
+        replyText += `• <b><a href="${homepage}">${name}</a></b>  •  <code>v${version}</code>\n`;
+      } else {
+        replyText += `• <b>${name}</b>  •  <code>v${version}</code>\n`;
+      }
+
+      // 2nd line: Attribute Path & License & GitHub Nix Source Link
+      replyText += `  <code>nixpkgs#${attrName}</code>  •  <i>${licenseStr}</i>${positionLinkHtml}\n`;
+
+      // 3rd line: Description
+      replyText += `  <i>${desc}</i>\n\n`;
     });
 
     await ctx.reply(replyText, {
