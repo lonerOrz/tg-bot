@@ -128,7 +128,11 @@ class GitHubBuildService {
         ? { success: true, message: `Successfully triggered build for ${packageName}` } 
         : { success: false, error: "Failed to trigger build" };
     } catch (err) {
-      logger.error("Error in handleBuildCommand:", err);
+      // Wrap the Error object in a plain object so JSON.stringify can serialize it
+      logger.error("Error in handleBuildCommand:", {
+        error_message: err.message,
+        error_stack: err.stack
+      });
       return { success: false, error: err.message };
     }
   }
