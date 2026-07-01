@@ -75,7 +75,6 @@ cmd.callbackQuery(/^verify_(\d+)_(\d+)$/, async (ctx) => {
       text: "Verification expired or already completed.",
       show_alert: true,
     });
-    // 用户验证已过期或不存在，可以尝试删除残留消息
     return;
   }
 
@@ -98,7 +97,6 @@ cmd.callbackQuery(/^verify_(\d+)_(\d+)$/, async (ctx) => {
       `${ctx.from.first_name || "User"} failed verification and was removed.`
     );
     
-    // 增加群组判断，如果是私聊环境则不调用 ban 接口
     if (ctx.chat.type !== "private") {
       await ctx.api.banChatMember(chatId, targetUserId);
       await ctx.api.unbanChatMember(chatId, targetUserId);

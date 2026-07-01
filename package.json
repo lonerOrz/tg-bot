@@ -4,8 +4,7 @@
   "description": "A Telegram bot deployed on Vercel with serverless functions",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "register-commands": "node register-commands.js"
+    "build": "node register-commands.js"
   },
   "keywords": [
     "telegram",
@@ -13,7 +12,7 @@
     "vercel",
     "serverless"
   ],
-  "author": "Your Name",
+  "author": "lonerOrz",
   "license": "MIT",
   "devDependencies": {
     "ngrok": "^5.0.0-beta.2"

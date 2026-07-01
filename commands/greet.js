@@ -9,4 +9,8 @@ cmd.command("greet", async (ctx) => {
   await ctx.reply(replyMessage);
 });
 
-module.exports = cmd;
+module.exports = {
+  composer: cmd,
+  command: "greet",
+  description: "Greet the user"
+};

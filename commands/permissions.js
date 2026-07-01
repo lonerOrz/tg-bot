@@ -17,4 +17,8 @@ cmd.command("permissions", async (ctx) => {
   await ctx.reply(response);
 });
 
-module.exports = cmd;
+module.exports = {
+  composer: cmd,
+  command: "permissions",
+  description: "Check bot permissions"
+};

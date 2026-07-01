@@ -6,4 +6,8 @@ cmd.command("dice", async (ctx) => {
   await ctx.replyWithDice();
 });
 
-module.exports = cmd;
+module.exports = {
+  composer: cmd,
+  command: "dice",
+  description: "Roll a dice"
+};

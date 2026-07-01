@@ -29,18 +29,12 @@ cmd.command("testverify", async (ctx) => {
     return ctx.reply("You are not authorized to use this command.");
   }
 
-  // 1. 限制只能在群组中使用测试验证
   if (ctx.chat.type === "private") {
     return ctx.reply("❌ Test verification can only be executed within a group or supergroup.");
   }
 
   const chatId = ctx.chat.id;
   const userId = ctx.from.id;
-
-  const existing = await state.getPendingVerification(chatId, userId);
-  if (existing) {
-    clearTimeout(existing.timeoutId);
-  }
 
   const question =
     quizQuestions[Math.floor(Math.random() * quizQuestions.length)];
@@ -59,23 +53,7 @@ cmd.command("testverify", async (ctx) => {
     correctIndex: question.correctIndex,
     messageId: sentMessage.message_id,
     timestamp: Date.now(),
-    timeoutId: setTimeout(async () => {
-      try {
-        await state.removePendingVerification(chatId, userId);
-        
-        // 2. 只有在非私聊环境才执行封禁
-        if (ctx.chat.type !== "private") {
-          await ctx.api.banChatMember(chatId, userId);
-          await ctx.api.unbanChatMember(chatId, userId);
-        }
-        
-        await ctx.api.sendMessage(chatId, "Test verification timed out.");
-        await ctx.api.deleteMessage(chatId, sentMessage.message_id);
-      } catch (error) {
-        logger.error("Error in test verification timeout:", error);
-      }
-    }, VERIFICATION_TIMEOUT),
-  });
+  }, Math.floor(VERIFICATION_TIMEOUT / 1000));
 
   await ctx.reply("Test verification started.");
 });
