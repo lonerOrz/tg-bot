@@ -19,8 +19,6 @@ cmd.command("search", async (ctx) => {
     const credentials = Buffer.from(
       "aWVSALXpZv:X8gPHnzL52wFEekuxsfQ9cSh",
     ).toString("base64");
-
-    // Using a wildcard 'latest-*-nixos-unstable' to make the endpoint future-proof
     const response = await fetch(
       "https://search.nixos.org/backend/latest-*-nixos-unstable/_search",
       {
@@ -63,7 +61,7 @@ cmd.command("search", async (ctx) => {
     hits.forEach((hit, index) => {
       const source = hit._source;
       const name = source.package_pname || "Unknown";
-      const version = source.package_version || "N/A";
+      const version = source.package_pversion || "N/A"; // Fixed field name to package_pversion
       const desc = source.package_description || "No description provided.";
       const homepage = source.package_homepage?.[0] || "";
 

@@ -30,14 +30,13 @@ async function checkPackageVulnerabilities(packageName, version) {
 }
 
 /**
- * Helper function to fetch the latest package version from Nixpkgs unstable using a future-proof wildcard index
+ * Helper function to fetch the latest package version from Nixpkgs unstable
  */
 async function getLatestNixVersion(packageName) {
   const credentials = Buffer.from(
     "aWVSALXpZv:X8gPHnzL52wFEekuxsfQ9cSh",
   ).toString("base64");
 
-  // Using wildcard index to prevent breakage when schema version updates
   const response = await fetch(
     "https://search.nixos.org/backend/latest-*-nixos-unstable/_search",
     {
@@ -68,7 +67,7 @@ async function getLatestNixVersion(packageName) {
   const data = await response.json();
   const hits = data.hits?.hits || [];
   if (hits.length > 0) {
-    return hits[0]._source.package_version || null;
+    return hits[0]._source.package_pversion || null; // Fixed field name to package_pversion
   }
   return null;
 }
@@ -92,7 +91,6 @@ cmd.command("vuln", async (ctx) => {
   try {
     let resolvingMsg = null;
 
-    // If version is omitted, fetch the latest version automatically
     if (!version) {
       resolvingMsg = await ctx.reply(
         `🔍 Fetching the latest version for \`${packageName}\` in Nixpkgs unstable...`,
@@ -129,7 +127,6 @@ cmd.command("vuln", async (ctx) => {
           { parse_mode: "Markdown" },
         );
 
-    // Perform scan using OSV database
     const vulns = await checkPackageVulnerabilities(packageName, version);
 
     if (scanningMsg) {
@@ -149,7 +146,6 @@ cmd.command("vuln", async (ctx) => {
 
     let replyText = `⚠️ *Vulnerabilities detected for* \`${packageName}\` (v${version}):\n\n`;
 
-    // Display up to 5 vulnerabilities to prevent hitting Telegram message length limits
     const displayedVulns = vulns.slice(0, 5);
     displayedVulns.forEach((vuln) => {
       const id = vuln.id || "N/A";
