@@ -1,80 +1,50 @@
-// api/github-webhook.js
-// GitHub Webhook处理器
 const crypto = require('crypto');
 const config = require('../config');
-const TelegramBot = require('node-telegram-bot-api');
+const bot = require('../src/bot');
 
-// 创建机器人实例用于发送通知
-// 注意：在Vercel环境中，我们可能需要从环境变量获取token
-const botToken = process.env.TELEGRAM_TOKEN || config.telegramToken;
-if (!botToken) {
-  console.error('错误: 未设置TELEGRAM_TOKEN环境变量');
-}
-
-const bot = new TelegramBot(botToken, { polling: false });
-
-// 从配置获取接收通知的用户ID
 const NOTIFICATION_USER_ID = config.githubMonitor.notificationUserId;
 if (!NOTIFICATION_USER_ID) {
-  console.warn('警告: 未设置NOTIFICATION_USER_ID环境变量，将无法发送通知');
+  console.warn('Warning: NOTIFICATION_USER_ID not set, notifications will not be sent');
 }
 
-/**
- * 验证GitHub Webhook请求的签名
- * @param {string} payload - 请求体
- * @param {string} signature - GitHub发送的签名
- * @param {string} secret - Webhook密钥
- * @returns {boolean} 签名是否有效
- */
 function verifySignature(payload, signature, secret) {
-  const expectedSignature = 'sha256=' + 
+  const expectedSignature = 'sha256=' +
     crypto.createHmac('sha256', secret)
           .update(payload, 'utf8')
           .digest('hex');
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSignature);
+
+  if (sigBuf.length !== expBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(sigBuf, expBuf);
 }
 
-/**
- * 检查仓库是否在允许列表中
- * @param {string} repoFullName - 完整仓库名 (owner/repo)
- * @returns {boolean} 是否允许处理此仓库
- */
 function isRepoAllowed(repoFullName) {
-  // 如果允许列表为空，则允许所有仓库
-  return config.githubMonitor.allowedRepos.length === 0 || 
+  return config.githubMonitor.allowedRepos.length === 0 ||
          config.githubMonitor.allowedRepos.includes(repoFullName);
 }
 
-/**
- * 发送通知给用户
- * @param {string} message - 消息内容
- */
 async function sendNotification(message) {
   if (!NOTIFICATION_USER_ID) {
-    console.log('未设置NOTIFICATION_USER_ID，跳过发送通知');
+    console.log('NOTIFICATION_USER_ID not set, skipping notification');
     return;
   }
 
   try {
-    await bot.sendMessage(NOTIFICATION_USER_ID, message, {
+    await bot.api.sendMessage(NOTIFICATION_USER_ID, message, {
       parse_mode: "Markdown",
       disable_web_page_preview: true
     });
-    console.log(`已向用户 ${NOTIFICATION_USER_ID} 发送通知`);
+    console.log(`Notification sent to ${NOTIFICATION_USER_ID}`);
   } catch (error) {
-    console.error(`发送通知给用户 ${NOTIFICATION_USER_ID} 时出错:`, error.message);
+    console.error(`Error sending notification to ${NOTIFICATION_USER_ID}:`, error.message);
   }
 }
 
-
-
-/**
- * 构建Star事件消息
- */
 function buildStarMessage(action, repoFullName, starredBy) {
   const actionText = action === 'created' ? '⭐ Star added' : '⭐ Star removed';
   const repoUrl = `https://github.com/${repoFullName}`;
@@ -82,18 +52,12 @@ function buildStarMessage(action, repoFullName, starredBy) {
   return `${actionText} [${repoFullName}](${repoUrl}) by [${starredBy}](${userUrl})!\n${repoFullName} is getting more popular! 🚀`;
 }
 
-/**
- * 构建Fork事件消息
- */
 function buildForkMessage(repoFullName, forker) {
   const repoUrl = `https://github.com/${repoFullName}`;
   const userUrl = `https://github.com/${forker}`;
   return `🧩 Fork [${repoFullName}](${repoUrl}) created by [${forker}](${userUrl})!\n${repoFullName} is being explored! 🔍`;
 }
 
-/**
- * 构建Watch事件消息
- */
 function buildWatchMessage(action, repoFullName, watcher) {
   const actionText = action === 'started' ? '🔔 Started watching' : '🔕 Stopped watching';
   const repoUrl = `https://github.com/${repoFullName}`;
@@ -101,9 +65,6 @@ function buildWatchMessage(action, repoFullName, watcher) {
   return `${actionText} [${repoFullName}](${repoUrl}) by [${watcher}](${userUrl})!\nSomeone is keeping an eye on your project! 👀`;
 }
 
-/**
- * 构建Issue事件消息
- */
 function buildIssueMessage(action, repoFullName, issue) {
   let actionText;
   let actionIcon;
@@ -131,13 +92,10 @@ function buildIssueMessage(action, repoFullName, issue) {
   return `${actionIcon} ${actionText} #${issue.number} in [${repoFullName}](${repoUrl}) by [${issue.user.login}](${userUrl})!\nGreat chance to improve your project! 🚀\nLet's keep making ${repoFullName} better! 🌟`;
 }
 
-/**
- * 构建Pull Request事件消息
- */
 function buildPullRequestMessage(action, repoFullName, pr) {
   let actionText;
   let actionIcon;
-  let isImportantEvent = false; // 标记是否为重要事件
+  let isImportantEvent = false;
 
   switch (action) {
     case 'opened':
@@ -181,7 +139,6 @@ function buildPullRequestMessage(action, repoFullName, pr) {
       actionText = `Pull Request ${action}`;
   }
 
-  // 如果不是重要事件，返回null表示不发送通知
   if (!isImportantEvent) {
     return null;
   }
@@ -192,9 +149,6 @@ function buildPullRequestMessage(action, repoFullName, pr) {
   return `${actionIcon} ${actionText} #${pr.number} in [${repoFullName}](${repoUrl}) by [${pr.user.login}](${userUrl})!\nGreat contribution to your project! 🚀\nLet's keep making ${repoFullName} better! 🌟`;
 }
 
-/**
- * 构建Release事件消息
- */
 function buildReleaseMessage(action, repoFullName, release) {
   let actionText;
   let actionIcon;
@@ -226,19 +180,10 @@ function buildReleaseMessage(action, repoFullName, release) {
   return `${actionIcon} ${actionText} ${release.tag_name} in [${repoFullName}](${repoUrl}) by [${release.author.login}](${userUrl})!\nYour project just got an update! 🚀\nLet's keep making ${repoFullName} better! 🌟`;
 }
 
-/**
- * 通用事件处理器
- * @param {Object} payload - 事件载荷
- * @param {string} eventType - 事件类型
- * @param {Function} messageBuilder - 消息构建函数
- * @param {boolean} isImportantEvent - 是否为重要事件（仅对PR使用）
- * @param {boolean} checkNotificationEnabled - 是否检查通知开关（默认为true）
- */
 async function handleEvent(payload, eventType, messageBuilder, isImportantEvent = true, checkNotificationEnabled = true) {
   const repoFullName = payload.repository.full_name;
   const action = payload.action;
 
-  // 检查是否启用了对应事件类型的通知
   let isNotificationEnabled = true;
   if (checkNotificationEnabled) {
     switch (eventType) {
@@ -265,126 +210,78 @@ async function handleEvent(payload, eventType, messageBuilder, isImportantEvent 
     }
 
     if (!isNotificationEnabled) {
-      console.log(`${eventType}事件通知已禁用，跳过处理`);
+      console.log(`${eventType} notifications disabled, skipping`);
       return;
     }
   }
 
-  console.log(`仓库 ${repoFullName} 的${eventType}事件: ${action}`);
+  console.log(`Repo ${repoFullName} ${eventType} event: ${action}`);
 
-  // 检查仓库是否在允许列表中
   if (!isRepoAllowed(repoFullName)) {
-    console.log(`仓库 ${repoFullName} 不在允许列表中，跳过处理`);
+    console.log(`Repo ${repoFullName} not in allowed list, skipping`);
     return;
   }
 
   const message = messageBuilder(payload);
-  // 如果消息为null（表示不重要的事件），则不发送通知
   if (message !== null && isImportantEvent) {
     await sendNotification(message);
   }
 }
 
-/**
- * 处理Star事件
- */
 async function handleStarEvent(payload) {
-  await handleEvent(
-    payload,
-    'star',
-    (payload) => {
-      const action = payload.action; // "created" 或 "deleted"
-      const starredBy = payload.sender.login;
-      return buildStarMessage(action, payload.repository.full_name, starredBy);
-    }
-  );
+  await handleEvent(payload, 'star', (payload) => {
+    const action = payload.action;
+    const starredBy = payload.sender.login;
+    return buildStarMessage(action, payload.repository.full_name, starredBy);
+  });
 }
 
-/**
- * 处理Fork事件
- */
 async function handleForkEvent(payload) {
-  await handleEvent(
-    payload,
-    'fork',
-    (payload) => {
-      const forker = payload.sender.login;
-      return buildForkMessage(payload.repository.full_name, forker);
-    }
-  );
+  await handleEvent(payload, 'fork', (payload) => {
+    const forker = payload.sender.login;
+    return buildForkMessage(payload.repository.full_name, forker);
+  });
 }
 
-/**
- * 处理Watch事件（关注/取消关注）
- */
 async function handleWatchEvent(payload) {
-  await handleEvent(
-    payload,
-    'watch',
-    (payload) => {
-      const action = payload.action; // "started" 或 "deleted"
-      const watcher = payload.sender.login;
-      return buildWatchMessage(action, payload.repository.full_name, watcher);
-    }
-  );
+  await handleEvent(payload, 'watch', (payload) => {
+    const action = payload.action;
+    const watcher = payload.sender.login;
+    return buildWatchMessage(action, payload.repository.full_name, watcher);
+  });
 }
 
-/**
- * 处理Issue事件
- */
 async function handleIssueEvent(payload) {
-  await handleEvent(
-    payload,
-    'issue',
-    (payload) => {
-      const issue = payload.issue;
-      return buildIssueMessage(payload.action, payload.repository.full_name, issue);
-    }
-  );
+  await handleEvent(payload, 'issue', (payload) => {
+    const issue = payload.issue;
+    return buildIssueMessage(payload.action, payload.repository.full_name, issue);
+  });
 }
 
-/**
- * 处理Pull Request事件
- */
 async function handlePullRequestEvent(payload) {
   const action = payload.action;
-  // 判断是否为重要事件
   const isImportantEvent = ['opened', 'closed', 'reopened'].includes(action) ||
                           (action === 'closed' && payload.pull_request.merged);
 
-  await handleEvent(
-    payload,
-    'pullRequest',
-    (payload) => {
-      const pr = payload.pull_request;
-      return buildPullRequestMessage(payload.action, payload.repository.full_name, pr);
-    },
-    isImportantEvent
-  );
+  await handleEvent(payload, 'pullRequest', (payload) => {
+    const pr = payload.pull_request;
+    return buildPullRequestMessage(payload.action, payload.repository.full_name, pr);
+  }, isImportantEvent);
 }
 
-/**
- * 处理Release事件
- */
 async function handleReleaseEvent(payload) {
-  await handleEvent(
-    payload,
-    'release',
-    (payload) => {
-      const release = payload.release;
-      return buildReleaseMessage(payload.action, payload.repository.full_name, release);
-    }
-  );
+  await handleEvent(payload, 'release', (payload) => {
+    const release = payload.release;
+    return buildReleaseMessage(payload.action, payload.repository.full_name, release);
+  });
 }
 
 module.exports = async (request, response) => {
-  // 只接受POST请求
   if (request.method !== 'POST') {
     return response.status(405).send('Method Not Allowed');
   }
 
   try {
-    // 在Vercel中，请求体可能已经被解析，我们需要确保它是字符串格式以便验证签名
     let rawPayload;
     if (typeof request.body === 'string') {
       rawPayload = request.body;
@@ -397,31 +294,21 @@ module.exports = async (request, response) => {
     const signature = request.headers['x-hub-signature-256'];
     const event = request.headers['x-github-event'];
 
-    // 验证Webhook签名（如果设置了密钥）
-    if (process.env.GITHUB_WEBHOOK_SECRET && signature) {
-      const isValid = verifySignature(
-        rawPayload,
-        signature,
-        process.env.GITHUB_WEBHOOK_SECRET
-      );
-      
-      if (!isValid) {
-        console.error('Webhook签名验证失败');
+    if (process.env.GITHUB_WEBHOOK_SECRET) {
+      if (!signature || !verifySignature(rawPayload, signature, process.env.GITHUB_WEBHOOK_SECRET)) {
+        console.error('Webhook signature verification failed');
         return response.status(401).send('Unauthorized');
       }
     }
 
-    console.log(`接收到GitHub事件: ${event}`);
-    
-    // 解析请求体
+    console.log(`Received GitHub event: ${event}`);
+
     const parsedPayload = JSON.parse(rawPayload);
-    
-    // 根据事件类型处理
+
     switch (event) {
       case 'ping':
-        // 响应ping事件，确认webhook配置成功
-        console.log('接收到ping事件，webhook配置验证成功');
-        response.status(200).json({ message: 'Webhook配置验证成功', zen: parsedPayload.zen });
+        console.log('Ping event received, webhook verified');
+        response.status(200).json({ message: 'Webhook verified', zen: parsedPayload.zen });
         return;
       case 'star':
         await handleStarEvent(parsedPayload);
@@ -442,14 +329,14 @@ module.exports = async (request, response) => {
         await handleReleaseEvent(parsedPayload);
         break;
       default:
-        console.log(`未处理的事件类型: ${event}`);
+        console.log(`Unhandled event type: ${event}`);
         break;
     }
-    
-    response.status(200).json({ message: 'Webhook处理成功' });
+
+    response.status(200).json({ message: 'Webhook processed' });
   } catch (error) {
-    console.error('处理Webhook事件时出错:', error);
-    console.error('错误堆栈:', error.stack);
+    console.error('Error processing webhook event:', error);
+    console.error('Error stack:', error.stack);
     response.status(500).json({ error: error.message });
   }
 };
