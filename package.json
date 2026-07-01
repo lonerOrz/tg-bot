@@ -4,7 +4,7 @@
   "description": "A Telegram bot deployed on Vercel with serverless functions",
   "main": "index.js",
   "scripts": {
-    "build": "node register-commands.js"
+    "postinstall": "node register-commands.js"
   },
   "keywords": [
     "telegram",
